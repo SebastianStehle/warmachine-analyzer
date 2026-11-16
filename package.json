@@ -1,0 +1,21 @@
+{
+  "name": "warmachine-analyzer",
+  "private": true,
+  "version": "0.0.0",
+  "license": "MIT",
+  "description": "Tooling-only root: git hooks (husky) that run lint --fix on staged files, plus dev scripts that start the docker compose infrastructure and both dev servers. Each package (backend, frontend) manages its own dependencies separately.",
+  "scripts": {
+    "prepare": "husky",
+    "dev": "npm run dev:infra && concurrently -n backend,frontend -c blue,green --kill-others-on-fail \"npm:dev:backend\" \"npm:dev:frontend\"",
+    "dev:infra": "docker compose -f dev/docker-compose.yml up -d --wait postgresql",
+    "dev:infra:down": "docker compose -f dev/docker-compose.yml down",
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "install:all": "npm install && npm --prefix backend install && npm --prefix frontend install && npm run generate",
+    "generate": "npm --prefix frontend run generate"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.3",
+    "husky": "^9.1.7"
+  }
+}

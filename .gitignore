@@ -1,0 +1,9 @@
+node_modules
+dist
+bin
+
+.idea
+.env
+
+# API client is generated from the committed OpenAPI spec with `npm run generate`.
+frontend/src/api/generated

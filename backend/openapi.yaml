@@ -1,0 +1,704 @@
+openapi: 3.0.0
+paths:
+  /api/events:
+    get:
+      description: Gets imported events, newest first.
+      operationId: getEvents
+      parameters:
+        - name: page
+          required: false
+          in: query
+          description: The zero based page.
+          schema:
+            type: number
+        - name: pageSize
+          required: false
+          in: query
+          description: The number of items per page.
+          schema:
+            type: number
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventsDto"
+      summary: ""
+      tags:
+        - events
+  /api/lists:
+    get:
+      description: Gets lists, newest first.
+      operationId: getLists
+      parameters:
+        - name: from
+          required: false
+          in: query
+          description: Only include events on or after this date (YYYY-MM-DD).
+          schema:
+            type: string
+        - name: to
+          required: false
+          in: query
+          description: Only include events on or before this date (YYYY-MM-DD).
+          schema:
+            type: string
+        - name: page
+          required: false
+          in: query
+          description: The zero based page.
+          schema:
+            type: number
+        - name: pageSize
+          required: false
+          in: query
+          description: The number of items per page.
+          schema:
+            type: number
+        - name: army
+          required: false
+          in: query
+          description: Only lists of this army.
+          schema:
+            type: string
+        - name: caster
+          required: false
+          in: query
+          description: Only lists with this caster.
+          schema:
+            type: string
+        - name: unit
+          required: false
+          in: query
+          description: Only lists containing this model or unit.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListsDto"
+      summary: ""
+      tags:
+        - lists
+  /api/lists/{id}:
+    get:
+      description: Gets a list with entries and games.
+      operationId: getList
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: The ID of the list.
+          schema:
+            type: number
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListDetailsDto"
+      summary: ""
+      tags:
+        - lists
+  /api/stats/factions:
+    get:
+      description: Gets stats per army.
+      operationId: getFactionStats
+      parameters:
+        - name: from
+          required: false
+          in: query
+          description: Only include events on or after this date (YYYY-MM-DD).
+          schema:
+            type: string
+        - name: to
+          required: false
+          in: query
+          description: Only include events on or before this date (YYYY-MM-DD).
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FactionStatsListDto"
+      summary: ""
+      tags:
+        - stats
+  /api/stats/factions/{army}:
+    get:
+      description: Gets casters, units and matchups of an army.
+      operationId: getFactionDetails
+      parameters:
+        - name: army
+          required: true
+          in: path
+          description: The army as named by Longshanks.
+          schema:
+            type: string
+        - name: from
+          required: false
+          in: query
+          description: Only include events on or after this date (YYYY-MM-DD).
+          schema:
+            type: string
+        - name: to
+          required: false
+          in: query
+          description: Only include events on or before this date (YYYY-MM-DD).
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FactionDetailsDto"
+      summary: ""
+      tags:
+        - stats
+info:
+  title: Warmachine Analyzer
+  description: Meta analysis for Warmachine lists
+  version: "1.0"
+  contact: {}
+tags: []
+servers: []
+components:
+  schemas:
+    EventDto:
+      type: object
+      properties:
+        id:
+          type: number
+          description: The Longshanks ID of the event.
+        name:
+          type: string
+          description: The name.
+        date:
+          type: string
+          description: The date (YYYY-MM-DD).
+        location:
+          type: string
+          description: The location.
+          nullable: true
+        type:
+          type: string
+          description: The event type, e.g. Rated tournament.
+          nullable: true
+        playerCount:
+          type: number
+          description: The number of players.
+        rounds:
+          type: number
+          description: The number of rounds.
+        lists:
+          type: number
+          description: The number of imported lists.
+      required:
+        - id
+        - name
+        - date
+        - location
+        - type
+        - playerCount
+        - rounds
+        - lists
+    EventsDto:
+      type: object
+      properties:
+        items:
+          description: The events.
+          type: array
+          items:
+            $ref: "#/components/schemas/EventDto"
+        total:
+          type: number
+          description: The total number of events.
+      required:
+        - items
+        - total
+    ListSummaryDto:
+      type: object
+      properties:
+        id:
+          type: number
+          description: The ID of the list.
+        title:
+          type: string
+          description: The title of the list.
+        faction:
+          type: string
+          description: The parent faction.
+          nullable: true
+        army:
+          type: string
+          description: The army.
+          nullable: true
+        caster:
+          type: string
+          description: The caster.
+          nullable: true
+        totalPoints:
+          type: number
+          description: The total points.
+          nullable: true
+        eventId:
+          type: number
+          description: The Longshanks ID of the event.
+        eventName:
+          type: string
+          description: The name of the event.
+        eventDate:
+          type: string
+          description: The date of the event.
+        eventPlayers:
+          type: number
+          description: The number of players in the event.
+        playerId:
+          type: number
+          description: The Longshanks ID of the player.
+        playerName:
+          type: string
+          description: The name of the player.
+        rank:
+          type: number
+          description: The final rank in the event.
+          nullable: true
+        eventWins:
+          type: number
+          description: The wins of the player in the event.
+          nullable: true
+        eventLosses:
+          type: number
+          description: The losses of the player in the event.
+          nullable: true
+        games:
+          type: number
+          description: The games played with this list.
+        wins:
+          type: number
+          description: The games won with this list.
+      required:
+        - id
+        - title
+        - faction
+        - army
+        - caster
+        - totalPoints
+        - eventId
+        - eventName
+        - eventDate
+        - eventPlayers
+        - playerId
+        - playerName
+        - rank
+        - eventWins
+        - eventLosses
+        - games
+        - wins
+    ListsDto:
+      type: object
+      properties:
+        items:
+          description: The lists.
+          type: array
+          items:
+            $ref: "#/components/schemas/ListSummaryDto"
+        total:
+          type: number
+          description: The total number of lists.
+      required:
+        - items
+        - total
+    ListEntryKind:
+      type: string
+      enum:
+        - leader
+        - model
+        - module
+      description: The kind of entry.
+    ListEntryDto:
+      type: object
+      properties:
+        name:
+          type: string
+          description: The name as written in the list.
+        points:
+          type: number
+          description: The points cost.
+          nullable: true
+        depth:
+          type: number
+          description: The indentation level.
+        kind:
+          description: The kind of entry.
+          allOf:
+            - $ref: "#/components/schemas/ListEntryKind"
+      required:
+        - name
+        - points
+        - depth
+        - kind
+    GameResult:
+      type: string
+      enum:
+        - win
+        - loss
+        - draw
+      description: The result.
+    ListGameDto:
+      type: object
+      properties:
+        round:
+          type: number
+          description: The round.
+        scenario:
+          type: string
+          description: The scenario.
+          nullable: true
+        opponentName:
+          type: string
+          description: The opponent.
+          nullable: true
+        opponentArmy:
+          type: string
+          description: The army of the opponent.
+          nullable: true
+        opponentCaster:
+          type: string
+          description: The caster of the opponent.
+          nullable: true
+        result:
+          description: The result.
+          allOf:
+            - $ref: "#/components/schemas/GameResult"
+        controlPoints:
+          type: number
+          description: The control points.
+          nullable: true
+        armyPoints:
+          type: number
+          description: The army points.
+          nullable: true
+      required:
+        - round
+        - scenario
+        - opponentName
+        - opponentArmy
+        - opponentCaster
+        - result
+        - controlPoints
+        - armyPoints
+    ListDetailsDto:
+      type: object
+      properties:
+        id:
+          type: number
+          description: The ID of the list.
+        title:
+          type: string
+          description: The title of the list.
+        faction:
+          type: string
+          description: The parent faction.
+          nullable: true
+        army:
+          type: string
+          description: The army.
+          nullable: true
+        caster:
+          type: string
+          description: The caster.
+          nullable: true
+        totalPoints:
+          type: number
+          description: The total points.
+          nullable: true
+        eventId:
+          type: number
+          description: The Longshanks ID of the event.
+        eventName:
+          type: string
+          description: The name of the event.
+        eventDate:
+          type: string
+          description: The date of the event.
+        eventPlayers:
+          type: number
+          description: The number of players in the event.
+        playerId:
+          type: number
+          description: The Longshanks ID of the player.
+        playerName:
+          type: string
+          description: The name of the player.
+        rank:
+          type: number
+          description: The final rank in the event.
+          nullable: true
+        eventWins:
+          type: number
+          description: The wins of the player in the event.
+          nullable: true
+        eventLosses:
+          type: number
+          description: The losses of the player in the event.
+          nullable: true
+        games:
+          type: number
+          description: The games played with this list.
+        wins:
+          type: number
+          description: The games won with this list.
+        format:
+          type: string
+          description: The game format.
+          nullable: true
+        pointLevel:
+          type: number
+          description: The point level.
+          nullable: true
+        rawText:
+          type: string
+          description: The list as submitted.
+        commandCards:
+          description: The command cards.
+          type: array
+          items:
+            type: string
+        warnings:
+          description: Problems found while parsing.
+          type: array
+          items:
+            type: string
+        entries:
+          description: The entries.
+          type: array
+          items:
+            $ref: "#/components/schemas/ListEntryDto"
+        playedGames:
+          description: The games played with this list.
+          type: array
+          items:
+            $ref: "#/components/schemas/ListGameDto"
+      required:
+        - id
+        - title
+        - faction
+        - army
+        - caster
+        - totalPoints
+        - eventId
+        - eventName
+        - eventDate
+        - eventPlayers
+        - playerId
+        - playerName
+        - rank
+        - eventWins
+        - eventLosses
+        - games
+        - wins
+        - format
+        - pointLevel
+        - rawText
+        - commandCards
+        - warnings
+        - entries
+        - playedGames
+    FactionStatsDto:
+      type: object
+      properties:
+        games:
+          type: number
+          description: The number of games, without byes and mirror matches.
+        wins:
+          type: number
+          description: The number of wins.
+        losses:
+          type: number
+          description: The number of losses.
+        draws:
+          type: number
+          description: The number of draws.
+        winRate:
+          type: number
+          description: Wins plus half the draws divided by games. Null without games.
+          nullable: true
+        army:
+          type: string
+          description: The army as named by Longshanks, e.g. House Kallyss.
+        faction:
+          type: string
+          description: The parent faction from the list header, e.g. Dusk.
+          nullable: true
+        players:
+          type: number
+          description: The number of event participations.
+        lists:
+          type: number
+          description: The number of submitted lists.
+        mirrors:
+          type: number
+          description: The number of mirror matches.
+      required:
+        - games
+        - wins
+        - losses
+        - draws
+        - winRate
+        - army
+        - faction
+        - players
+        - lists
+        - mirrors
+    FactionStatsListDto:
+      type: object
+      properties:
+        items:
+          description: The stats per army.
+          type: array
+          items:
+            $ref: "#/components/schemas/FactionStatsDto"
+      required:
+        - items
+    CasterStatsDto:
+      type: object
+      properties:
+        games:
+          type: number
+          description: The number of games, without byes and mirror matches.
+        wins:
+          type: number
+          description: The number of wins.
+        losses:
+          type: number
+          description: The number of losses.
+        draws:
+          type: number
+          description: The number of draws.
+        winRate:
+          type: number
+          description: Wins plus half the draws divided by games. Null without games.
+          nullable: true
+        caster:
+          type: string
+          description: The name of the caster.
+        lists:
+          type: number
+          description: The number of lists with this caster.
+      required:
+        - games
+        - wins
+        - losses
+        - draws
+        - winRate
+        - caster
+        - lists
+    UnitStatsDto:
+      type: object
+      properties:
+        games:
+          type: number
+          description: The number of games, without byes and mirror matches.
+        wins:
+          type: number
+          description: The number of wins.
+        losses:
+          type: number
+          description: The number of losses.
+        draws:
+          type: number
+          description: The number of draws.
+        winRate:
+          type: number
+          description: Wins plus half the draws divided by games. Null without games.
+          nullable: true
+        name:
+          type: string
+          description: The name of the model or unit.
+        lists:
+          type: number
+          description: The number of lists containing it.
+        copies:
+          type: number
+          description: The number of copies over all lists.
+        averagePoints:
+          type: number
+          description: The average points cost.
+          nullable: true
+      required:
+        - games
+        - wins
+        - losses
+        - draws
+        - winRate
+        - name
+        - lists
+        - copies
+        - averagePoints
+    MatchupStatsDto:
+      type: object
+      properties:
+        games:
+          type: number
+          description: The number of games, without byes and mirror matches.
+        wins:
+          type: number
+          description: The number of wins.
+        losses:
+          type: number
+          description: The number of losses.
+        draws:
+          type: number
+          description: The number of draws.
+        winRate:
+          type: number
+          description: Wins plus half the draws divided by games. Null without games.
+          nullable: true
+        opponent:
+          type: string
+          description: The opposing army.
+      required:
+        - games
+        - wins
+        - losses
+        - draws
+        - winRate
+        - opponent
+    FactionDetailsDto:
+      type: object
+      properties:
+        stats:
+          description: The overall stats of the army.
+          allOf:
+            - $ref: "#/components/schemas/FactionStatsDto"
+        casters:
+          description: The stats per caster.
+          type: array
+          items:
+            $ref: "#/components/schemas/CasterStatsDto"
+        units:
+          description: The stats per model or unit.
+          type: array
+          items:
+            $ref: "#/components/schemas/UnitStatsDto"
+        matchups:
+          description: The stats per opposing army.
+          type: array
+          items:
+            $ref: "#/components/schemas/MatchupStatsDto"
+      required:
+        - stats
+        - casters
+        - units
+        - matchups

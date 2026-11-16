@@ -11,15 +11,27 @@ The stack mirrors [pangostack](https://github.com/SebastianStehle/pangostack). I
 - **backend/** — NestJS API (port 3000). Imports data from Longshanks, parses army lists, stores everything in Postgres and serves the analysis endpoints.
 - **frontend/** — Vite + React 18 UI for browsing events and lists and exploring the statistics. Talks to the backend via a generated API client.
 
-There is no worker package and no Temporal. Imports are plain scheduled jobs in the backend (`@nestjs/schedule`) plus a manual "import event" command. Add a worker only if imports become long-running or need retries across restarts.
+There is no worker package and no Temporal. The crawler is a CLI (`npm run crawl`, `src/crawl.ts`) plus an optional cron job in the backend (`CRAWLER_SCHEDULE`). Both dispatch the same `ImportEvent` / `DiscoverEvents` commands. Add a worker only if imports become long-running or need retries across restarts.
 
 ## Data source: Longshanks
 
-- Base URL: `https://warmachine.longshanks.org/`. Events live at `/event/{id}/`, recent results at `/results/`, players at `/players/`.
-- Standings, games and lists of an event are loaded through tabs (podium, games, stats) that the static HTML does not contain. The exact endpoints still have to be discovered in a logged-in browser session (network tab) and documented here before the importer is written.
-- There is no public API. The importer logs in with a real account and parses HTML. Keep all Longshanks-specific code (HTTP, cookies, HTML parsing) in `backend/src/domain/longshanks/` so the rest of the app only sees typed domain objects.
-- Be a polite client: one request at a time, a fixed delay between requests (named constant), a descriptive User-Agent, and cache raw responses in the database so a re-parse never needs a re-download.
-- Credentials come from `LONGSHANKS_EMAIL` and `LONGSHANKS_PASSWORD` in `backend/.env`. Never commit them, never log them.
+There is no API, but everything we need is public HTML — no login required. The event page loads its tabs with jQuery `.load()` from these endpoints:
+
+| What | URL | Notes |
+|---|---|---|
+| Event header | `/event/{event}/` | Name (`h1`), date, location, `N of M players`, status (`Finished`). |
+| Standings | `/events/detail/panel_standings.php?event={event}&section=player` | `#player .ranking`: one `div.player#player_{id}` per player (rank, army, TP, wins/losses, SOS/VPS/APS) followed by `div.player.accordion.{id}` rows per round (opponent, result). |
+| Games of a round | `/events/detail/panel_games.php?event={event}&round={n}` | `#games .game#game_{id}`: per player faction, leader (`title="<Caster> - <Army> Leader"`), winner/loser, CP (`.score.vp`), AP (`.score.ap`), scenario. `#round_selector` lists all rounds. |
+| Single list record | `/admin/lists/pop_info.php?id={list}&event={event}` | Linked from standings via `pop_list(list, player, event)`. One record can contain several lists. |
+| Multiple list records | `/admin/players/pop_info.php?player={player}&event={event}&tab=list` | Linked via `pop_user(player, event, 'list')`. `#edit_player_list` has one column per list. |
+| Finding events | `/results/?date_from=YYYY-MM-DD&date_to=YYYY-MM-DD&min_win=0&max_loss=3&list_required=1` | Player results with links to `/event/{id}/`. Collect the distinct event ids. |
+
+- The raw list text is in a hidden `textarea#list_{id}`, lines joined with ` || `, whitespace preserved. Always parse the textarea, not the rendered table (the table collapses the indentation).
+- List text is the War Room export: title, `<Faction> - <Army>`, `<Format> - <N> pts`, `PC CARD`, then one line per entry: optional points, indentation, name. Column 8 = top level, deeper = attached to the entry above (battlegroup, mounts). Lines like `3 HEAD - Focus Vault` are modules of the entry above. Duplicates are numbered (`Farrow Sapper 1`, `Farrow Sapper 2`). Then `PC COMMAND CARD` and `TOTAL POINTS x/y`.
+- Longshanks calls the army (e.g. `House Kallyss`) the "Army" — that is what the faction stats group by. The parent faction (`Dusk`) comes from the list header.
+- Keep all Longshanks-specific code (HTTP, HTML parsing) in `backend/src/domain/longshanks/` so the rest of the app only sees typed domain objects.
+- Be a polite client: one request at a time, a fixed delay between requests (named constant), a descriptive User-Agent, and store raw responses in the database so a re-parse never needs a re-download.
+- `LONGSHANKS_EMAIL` / `LONGSHANKS_PASSWORD` are optional and currently unused. Never commit them, never log them.
 
 ## Domain
 
@@ -46,7 +58,8 @@ From the repo root, `npm run install:all` installs the root and both packages. `
 Each package: `npm run dev` (watch mode), `npm run build`, `npm run lint` / `npm run lint:fix` (eslint, `--max-warnings 0`), `npm run format` (prettier), `npm test` (vitest).
 
 Backend only:
-- `npm run test:int` — integration tests with TestContainers (needs Docker).
+- `npm run test:int` — integration tests with TestContainers (needs Docker). Set `TEST_DB_URL` to an admin connection of an existing Postgres server to skip the container.
+- `npm run crawl -- --event <id>` or `npm run crawl -- --from <date> [--to <date>]` — import from Longshanks. `--refresh` ignores the page cache.
 - `npm run typeorm:generate-migrations <Name>` — generate TypeORM migrations (data source: `src/domain/database/data-source.ts`).
 
 Env vars are validated per domain with Joi schemas (`DB_ENV_SCHEMA`, `LONGSHANKS_ENV_SCHEMA`, …) combined in `app.module.ts`. New env vars must be added to the matching schema, otherwise startup fails. See `backend/.env.example`.
@@ -68,7 +81,10 @@ Only the OpenAPI spec is committed. The API client is generated from it and is g
 ### Backend
 
 - **CQRS pattern** (@nestjs/cqrs): all domain logic lives in `src/domain/<area>/use-cases/` as `Command`/`Query` classes with co-located `@CommandHandler`/`@QueryHandler` classes. Controllers in `src/controllers/` are thin — they dispatch to the bus and map results to DTOs.
-- **Domain areas** (`src/domain/`): `database`, `longshanks` (client, login, HTML parsing), `imports` (scheduling and running imports), `lists` (list parser and normalization), `events`, `players`, `statistics`.
+- **Domain areas** (`src/domain/`): `database` (entities, migrations, `CoreModule` with config + TypeORM + CQRS shared by API and CLI), `longshanks` (HTTP client with page cache, HTML parsers), `imports` (`ImportEvent`, `DiscoverEvents`, scheduler), `lists` (list parser, list queries), `events`, `statistics`.
+- An import replaces all rows of the event in one transaction, so imports are idempotent.
+- Games are linked to the played list by comparing the game leader with the list caster (`isSameCaster`, tolerant to typos). Players with a single list always get that list.
+- Parser changes must be checked against real lists. Lists live in `test/fixtures/` (trimmed real HTML) and in `parser.spec.ts`.
 - **Database**: TypeORM + Postgres. Entities in `src/domain/database/entities/`, migrations in `src/domain/database/migrations/` — migrations are explicitly registered in `app.module.ts`, so new migrations must be added there.
 - Statistics are computed by query handlers. If they become slow, add materialized aggregates that the import refreshes — do not hand-write SQL against a specific database.
 

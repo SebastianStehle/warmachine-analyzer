@@ -1,4 +1,5 @@
-import { NavLink, Outlet } from 'react-router-dom';
+import { useEffect, useRef } from 'react';
+import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useDateRange } from 'src/lib/date-range';
 
 const NAVIGATION = [
@@ -18,10 +19,17 @@ function Cog() {
 
 export function Layout() {
   const { from, to, setRange } = useDateRange();
+  const { pathname } = useLocation();
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  // Only the content scrolls, so the browser does not reset the position when navigating to another page.
+  useEffect(() => {
+    contentRef.current?.scrollTo({ top: 0 });
+  }, [pathname]);
 
   return (
-    <div className="min-h-screen">
-      <header className="border-base-300 bg-base-100/90 sticky top-0 z-10 border-b backdrop-blur">
+    <div className="flex h-screen flex-col">
+      <header className="border-base-300 bg-base-100/90 shrink-0 border-b backdrop-blur">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center gap-x-6 gap-y-2 px-6 py-3">
           <NavLink to="/factions" className="flex items-center gap-2">
             <Cog />
@@ -64,9 +72,11 @@ export function Layout() {
         </div>
       </header>
 
-      <main className="mx-auto flex max-w-7xl flex-col gap-6 p-6">
-        <Outlet />
-      </main>
+      <div ref={contentRef} className="flex-1 overflow-y-auto">
+        <main className="mx-auto flex max-w-7xl flex-col gap-6 p-6">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 }

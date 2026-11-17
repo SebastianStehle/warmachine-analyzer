@@ -82,6 +82,9 @@ export const toEnumObject = <T extends string>(values: readonly T[]) => {
   return result;
 };
 
+// A single query value arrives as a string, several as an array.
+export const toArray = ({ value }: { value: unknown }) => (typeof value === 'string' ? [value] : value);
+
 export class RecordDto {
   @ApiProperty({
     description: 'The number of games, without byes and mirror matches.',

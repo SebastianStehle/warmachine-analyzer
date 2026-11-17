@@ -17,7 +17,6 @@ export class DiscoverEvents extends Command<DiscoverEventsResult> {
     public readonly from: string,
     public readonly to: string,
     public readonly refresh = false,
-    // Overrides CRAWLER_EVENT_CONCURRENCY.
     public readonly concurrency?: number,
   ) {
     super();

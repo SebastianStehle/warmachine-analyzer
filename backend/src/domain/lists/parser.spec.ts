@@ -154,13 +154,31 @@ describe('parseArmyLists', () => {
     expect(stub.warnings).toContain('No entries found.');
   });
 
-  it('should treat numbered equipment slots as modules', () => {
+  it('should treat numbered equipment slots and weapons as modules', () => {
     const [list] = parseArmyLists(
-      'Shard || Scharde - Shadowflame Shard || Grand Melee - 100 pts || PC      CARD ||         Lylyth, the Raven Vengeance || 12          Typhon || 2           DEFENSE 1 - Barrier || TOTAL POINTS  100/100',
+      [
+        'Shard',
+        'Khymaera - Shadowflame Shard',
+        'Grand Melee - 100 pts',
+        'PC      CARD',
+        '        Lylyth, the Raven Vengeance',
+        '22          Abyssal King',
+        '    2           TENTACLE WEAPON 1 - Powder Cask',
+        '    1           SMALLER HEAD 2 - Gnashing Fangs',
+        '4       Defenses',
+        '            DEFENSE OPTION 1 - Barrier',
+        '            DEFENSE OPTION 2  - No option',
+        'TOTAL POINTS  100/100',
+      ].join(' || '),
     );
 
-    expect(modulesOf(list)).toEqual(['DEFENSE 1 - Barrier']);
-    expect(modelsOf(list)).toEqual(['Typhon']);
+    expect(modulesOf(list)).toEqual([
+      'TENTACLE WEAPON 1 - Powder Cask',
+      'SMALLER HEAD 2 - Gnashing Fangs',
+      'DEFENSE OPTION 1 - Barrier',
+      'DEFENSE OPTION 2  - No option',
+    ]);
+    expect(modelsOf(list)).toEqual(['Abyssal King', 'Defenses']);
   });
 });
 

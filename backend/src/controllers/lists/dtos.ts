@@ -1,9 +1,9 @@
 import { ApiProperty, IntersectionType } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { IsEnum, IsInt, IsOptional, IsString } from 'class-validator';
 import { GameResult, ListEntryKind } from 'src/domain/database';
-import { ListDetails, ListEntry, ListGame, ListSortField, ListSummary } from 'src/domain/lists';
-import { DateRangeQueryDto, PageQueryDto, SearchQueryDto, toEnumObject } from '../shared';
+import { CasterOption, ListDetails, ListEntry, ListGame, ListSortField, ListSummary } from 'src/domain/lists';
+import { DateRangeQueryDto, PageQueryDto, SearchQueryDto, toArray, toEnumObject } from '../shared';
 
 const LIST_ENTRY_KINDS: ListEntryKind[] = ['leader', 'model', 'module'];
 const GAME_RESULTS: GameResult[] = ['win', 'loss', 'draw'];
@@ -42,20 +42,24 @@ export class ListsQueryDto extends IntersectionType(DateRangeQueryDto, PageQuery
   eventId?: number;
 
   @ApiProperty({
-    description: 'Only lists of this army.',
+    description: 'Only lists of these armies.',
     required: false,
+    type: [String],
   })
   @IsOptional()
-  @IsString()
-  army?: string;
+  @Transform(toArray)
+  @IsString({ each: true })
+  army?: string[];
 
   @ApiProperty({
-    description: 'Only lists with this caster.',
+    description: 'Only lists with one of these casters.',
     required: false,
+    type: [String],
   })
   @IsOptional()
-  @IsString()
-  caster?: string;
+  @Transform(toArray)
+  @IsString({ each: true })
+  caster?: string[];
 
   @ApiProperty({
     description: 'Only lists containing this model or unit.',
@@ -224,6 +228,46 @@ export class ListDetailsDto extends ListSummaryDto {
     Object.assign(result, rest);
     result.entries = entries.map(ListEntryDto.fromDomain);
     result.playedGames = playedGames.map(ListGameDto.fromDomain);
+    return result;
+  }
+}
+
+export class CastersQueryDto extends DateRangeQueryDto {
+  @ApiProperty({
+    description: 'Only casters of these armies.',
+    required: false,
+    type: [String],
+  })
+  @IsOptional()
+  @Transform(toArray)
+  @IsString({ each: true })
+  army?: string[];
+}
+
+export class CasterOptionDto {
+  @ApiProperty({ description: 'The caster.', required: true })
+  caster: string;
+
+  @ApiProperty({ description: 'The army.', required: true, nullable: true, type: String })
+  army: string | null;
+
+  @ApiProperty({ description: 'The number of lists with this caster.', required: true })
+  lists: number;
+
+  static fromDomain({ caster, army, lists }: CasterOption) {
+    const result = new CasterOptionDto();
+    Object.assign(result, { caster, army, lists });
+    return result;
+  }
+}
+
+export class CasterOptionsDto {
+  @ApiProperty({ description: 'The casters.', required: true, type: [CasterOptionDto] })
+  items: CasterOptionDto[];
+
+  static fromDomain(items: CasterOption[]) {
+    const result = new CasterOptionsDto();
+    result.items = items.map(CasterOptionDto.fromDomain);
     return result;
   }
 }

@@ -42,7 +42,6 @@ export function splitLines(text: string) {
   return text.split(text.includes(LINE_SEPARATOR) ? LINE_SEPARATOR : /\r?\n/).map((line) => line.replace(/\s+$/, ''));
 }
 
-// A single Longshanks list record can contain several lists, each closed by a TOTAL POINTS line.
 export function parseArmyLists(text: string): ParsedList[] {
   const result: ParsedList[] = [];
 

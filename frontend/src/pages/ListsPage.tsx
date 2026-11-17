@@ -1,16 +1,25 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ListSortField, SortOrder, useClients } from 'src/api';
-import { ArmyLink, EventLink, PageHeader, Pagination, PlayerLink, QueryState, SearchInput, SortHeader } from 'src/components';
+import {
+  ArmyLink,
+  EventLink,
+  MultiSelect,
+  PageHeader,
+  Pagination,
+  PlayerLink,
+  QueryState,
+  SearchInput,
+  SortHeader,
+} from 'src/components';
 import { useDateRange } from 'src/lib/date-range';
 import { useServerSort } from 'src/lib/sorting';
 
 const PAGE_SIZE = 50;
 
-type FilterKey = 'army' | 'caster' | 'unit' | 'playerId' | 'eventId' | 'search' | 'page';
+type FilterKey = 'unit' | 'playerId' | 'eventId' | 'search' | 'page';
 
 const FILTER_LABELS: Partial<Record<FilterKey, string>> = {
-  caster: 'Caster',
   unit: 'Contains',
   playerId: 'Player',
   eventId: 'Event',
@@ -23,8 +32,8 @@ export function ListsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { sort, toggle } = useServerSort<ListSortField>({ key: 'date', order: 'desc' }, ['event', 'player', 'army', 'caster']);
 
-  const army = searchParams.get('army') ?? undefined;
-  const caster = searchParams.get('caster') ?? undefined;
+  const armies = searchParams.getAll('army');
+  const casters = searchParams.getAll('caster');
   const unit = searchParams.get('unit') ?? undefined;
   const playerId = searchParams.get('playerId') ? Number(searchParams.get('playerId')) : undefined;
   const eventId = searchParams.get('eventId') ? Number(searchParams.get('eventId')) : undefined;
@@ -36,8 +45,13 @@ export function ListsPage() {
     queryFn: () => clients.stats.getFactionStats(from, to),
   });
 
+  const { data: casterOptions } = useQuery({
+    queryKey: ['casters', from, to, armies],
+    queryFn: () => clients.lists.getCasters(from, to, armies.length > 0 ? armies : undefined),
+  });
+
   const { data, isLoading, error } = useQuery({
-    queryKey: ['lists', from, to, army, caster, unit, playerId, eventId, search, sort, page],
+    queryKey: ['lists', from, to, armies, casters, unit, playerId, eventId, search, sort, page],
     queryFn: () =>
       clients.lists.getLists(
         from,
@@ -49,12 +63,25 @@ export function ListsPage() {
         sort.key,
         playerId,
         eventId,
-        army,
-        caster,
+        armies.length > 0 ? armies : undefined,
+        casters.length > 0 ? casters : undefined,
         unit,
       ),
     placeholderData: keepPreviousData,
   });
+
+  const setMultiFilter = (key: 'army' | 'caster', selected: string[]) => {
+    const next = new URLSearchParams(searchParams);
+    next.delete(key);
+    for (const value of selected) {
+      next.append(key, value);
+    }
+    next.delete('page');
+    setSearchParams(next);
+  };
+
+  // A caster can be played in several armies, but should only be offered once.
+  const casterNames = [...new Set(casterOptions?.items.map(({ caster }) => caster) ?? [])];
 
   const setFilter = (key: FilterKey, value?: string) => {
     const next = new URLSearchParams(searchParams);
@@ -69,7 +96,6 @@ export function ListsPage() {
     setSearchParams(next);
   };
 
-  // Shows the name instead of the ID when filtering by player or event.
   const firstItem = data?.items[0];
   const filterValue = (key: FilterKey) => {
     if (key === 'playerId') {
@@ -97,18 +123,19 @@ export function ListsPage() {
       />
 
       <div className="flex flex-wrap items-center gap-2">
-        <select
-          className="select select-sm w-auto"
-          value={army ?? ''}
-          onChange={(event) => setFilter('army', event.target.value)}
-        >
-          <option value="">All armies</option>
-          {factions?.items.map(({ army: name }) => (
-            <option key={name} value={name}>
-              {name}
-            </option>
-          ))}
-        </select>
+        <MultiSelect
+          options={factions?.items.map(({ army }) => army) ?? []}
+          selected={armies}
+          placeholder="All armies"
+          onChange={(selected) => setMultiFilter('army', selected)}
+        />
+
+        <MultiSelect
+          options={casterNames}
+          selected={casters}
+          placeholder="All casters"
+          onChange={(selected) => setMultiFilter('caster', selected)}
+        />
 
         {(Object.keys(FILTER_LABELS) as FilterKey[])
           .filter((key) => searchParams.get(key))

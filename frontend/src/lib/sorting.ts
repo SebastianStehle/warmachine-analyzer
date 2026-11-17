@@ -18,7 +18,6 @@ function compare(a: SortValue, b: SortValue) {
   return Number(a) - Number(b);
 }
 
-// Sorts data that is completely loaded. Empty values always go to the end.
 export function useClientSort<T, TKey extends string>(
   items: T[],
   accessors: Record<TKey, (item: T) => SortValue>,
@@ -60,7 +59,7 @@ export function useClientSort<T, TKey extends string>(
   return { sorted, sort, toggle };
 }
 
-// Sort state for server side paging, stored in the URL so that links and the back button keep it.
+// Stored in the URL, so that links and the back button keep the sort order.
 export function useServerSort<TKey extends string>(initial: SortState<NoInfer<TKey>>, textKeys: NoInfer<TKey>[]) {
   const [searchParams, setSearchParams] = useSearchParams();
 

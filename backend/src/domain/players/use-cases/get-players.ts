@@ -11,7 +11,6 @@ export interface PlayerSummary {
   events: number;
   wins: number;
   losses: number;
-  // Wins divided by all games of the player's events, including byes.
   winRate: number | null;
   lastEventDate: string | null;
   mainArmy: string | null;
@@ -50,7 +49,6 @@ export function toWinRate(wins: number, losses: number) {
   return wins + losses > 0 ? wins / (wins + losses) : null;
 }
 
-// The army a player brought most often, ties go to the most recent one.
 export async function loadMainArmies(dataSource: DataSource, playerIds: number[], range: { from?: string; to?: string }) {
   const result = new Map<number, string>();
   if (playerIds.length === 0) {

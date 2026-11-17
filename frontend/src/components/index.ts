@@ -1,5 +1,6 @@
 export * from './Layout';
 export * from './Links';
+export * from './MultiSelect';
 export * from './PageHeader';
 export * from './Pagination';
 export * from './QueryState';

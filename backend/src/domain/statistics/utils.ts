@@ -18,7 +18,6 @@ export function applyDateRange<T extends ObjectLiteral>(
   return query;
 }
 
-// Adds games, wins, losses and draws columns for game_players rows with the given alias.
 export function selectRecord<T extends ObjectLiteral>(query: SelectQueryBuilder<T>, alias: string) {
   return query
     .addSelect('COUNT(*)', 'games')

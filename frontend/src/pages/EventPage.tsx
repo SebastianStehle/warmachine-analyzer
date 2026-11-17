@@ -31,7 +31,6 @@ export function EventPage() {
   );
   const { sorted, sort, toggle } = useClientSort(standings, STANDING_ACCESSORS, { key: 'rank', order: 'asc' });
 
-  // The armies of the event, most played first.
   const armies = new Map<string, { faction: string | null; players: number }>();
   for (const { army, faction } of data?.standings ?? []) {
     if (army) {

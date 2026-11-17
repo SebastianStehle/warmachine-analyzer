@@ -31,7 +31,6 @@ export class ImportEvent extends Command<ImportEventResult> {
   constructor(
     public readonly eventId: number,
     public readonly refresh = false,
-    // Re-parses a finished event completely from stored pages, including the header.
     public readonly reparse = false,
   ) {
     super();
@@ -145,7 +144,6 @@ export class ImportEventHandler implements ICommandHandler<ImportEvent, ImportEv
       try {
         const playerLists: PlayerList[] = [];
         for (const { sourceId, text } of parseListTexts(await this.client.get(path, useCache))) {
-          // A single list record often contains several lists, separated by their TOTAL POINTS lines.
           const parsed = parseArmyLists(text);
           for (let sourceIndex = 0; sourceIndex < parsed.length; sourceIndex++) {
             const list = parsed[sourceIndex];
@@ -207,7 +205,6 @@ export class ImportEventHandler implements ICommandHandler<ImportEvent, ImportEv
       existingListIds.set(listKey(playerId, sourceId, sourceIndex), id);
     }
 
-    // List rows are updated in place instead, everything else of the event is replaced.
     for (const entity of [GamePlayerEntity, GameEntity, ListEntryEntity, ParticipantEntity]) {
       await manager.delete(entity, { eventId });
     }
@@ -228,7 +225,6 @@ export class ImportEventHandler implements ICommandHandler<ImportEvent, ImportEv
       [...players].map(([id, name]) => ({ id, name })),
     );
 
-    // Maps players to their stored lists, so games can reference the list that was played.
     const storedLists = new Map<number, ArmyListEntity[]>();
 
     for (const standing of standings) {
@@ -301,7 +297,6 @@ export class ImportEventHandler implements ICommandHandler<ImportEvent, ImportEv
       storedLists.set(playerId, saved);
     }
 
-    // Lists that were removed on Longshanks.
     if (existingListIds.size > 0) {
       await manager.delete(ArmyListEntity, [...existingListIds.values()]);
     }

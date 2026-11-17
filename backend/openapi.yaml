@@ -140,15 +140,19 @@ paths:
         - name: army
           required: false
           in: query
-          description: Only lists of this army.
+          description: Only lists of these armies.
           schema:
-            type: string
+            type: array
+            items:
+              type: string
         - name: caster
           required: false
           in: query
-          description: Only lists with this caster.
+          description: Only lists with one of these casters.
           schema:
-            type: string
+            type: array
+            items:
+              type: string
         - name: unit
           required: false
           in: query
@@ -162,6 +166,41 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ListsDto"
+      summary: ""
+      tags:
+        - lists
+  /api/lists/casters:
+    get:
+      description: Gets the casters of the lists.
+      operationId: getCasters
+      parameters:
+        - name: from
+          required: false
+          in: query
+          description: Only include events on or after this date (YYYY-MM-DD).
+          schema:
+            type: string
+        - name: to
+          required: false
+          in: query
+          description: Only include events on or before this date (YYYY-MM-DD).
+          schema:
+            type: string
+        - name: army
+          required: false
+          in: query
+          description: Only casters of these armies.
+          schema:
+            type: array
+            items:
+              type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CasterOptionsDto"
       summary: ""
       tags:
         - lists
@@ -615,6 +654,33 @@ components:
       required:
         - items
         - total
+    CasterOptionDto:
+      type: object
+      properties:
+        caster:
+          type: string
+          description: The caster.
+        army:
+          type: string
+          description: The army.
+          nullable: true
+        lists:
+          type: number
+          description: The number of lists with this caster.
+      required:
+        - caster
+        - army
+        - lists
+    CasterOptionsDto:
+      type: object
+      properties:
+        items:
+          description: The casters.
+          type: array
+          items:
+            $ref: "#/components/schemas/CasterOptionDto"
+      required:
+        - items
     ListEntryKind:
       type: string
       enum:

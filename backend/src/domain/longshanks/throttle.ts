@@ -1,4 +1,3 @@
-// Limits how many requests run at the same time and how fast they start.
 // Start times are reserved synchronously, so parallel callers can never start closer than the interval.
 export class RequestThrottle {
   private active = 0;
@@ -47,7 +46,6 @@ export class RequestThrottle {
   }
 }
 
-// Runs the action for every item with at most the given number of actions in parallel.
 export async function runWithConcurrency<T>(items: T[], concurrency: number, action: (item: T) => Promise<void>) {
   let index = 0;
 

@@ -4,12 +4,11 @@ import { GameResult, ListEntryKind } from 'src/domain/database';
 export type ListSortField = 'date' | 'event' | 'player' | 'rank' | 'army' | 'caster';
 
 export interface ListFilter extends PageRequest, SortRequest<ListSortField> {
-  army?: string;
-  caster?: string;
+  army?: string[];
+  caster?: string[];
   unit?: string;
   playerId?: number;
   eventId?: number;
-  // Matches title, caster, player and event.
   search?: string;
   from?: string;
   to?: string;
@@ -31,7 +30,6 @@ export interface ListSummary {
   rank: number | null;
   eventWins: number | null;
   eventLosses: number | null;
-  // Games in which this exact list was played, linked by the leader.
   games: number;
   wins: number;
 }
@@ -63,4 +61,10 @@ export interface ListDetails extends ListSummary {
   warnings: string[];
   entries: ListEntry[];
   playedGames: ListGame[];
+}
+
+export interface CasterOption {
+  caster: string;
+  army: string | null;
+  lists: number;
 }

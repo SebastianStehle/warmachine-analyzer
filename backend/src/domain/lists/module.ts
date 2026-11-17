@@ -1,9 +1,10 @@
 import { Module } from '@nestjs/common';
-import { GetListHandler, GetListsHandler } from './use-cases';
+import { GetCastersHandler, GetListHandler, GetListsHandler } from './use-cases';
 
 @Module({
   providers: [
-    GetListHandler, //
+    GetCastersHandler, //
+    GetListHandler,
     GetListsHandler,
   ],
 })

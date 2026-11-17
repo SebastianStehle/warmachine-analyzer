@@ -119,7 +119,8 @@ Only the OpenAPI spec is committed. The API client is generated from it and is g
 * If you write comments for types or members, write a single line only, keep it condensed and short.
 * Keep API descriptions via ApiOperation very short.
 * Move shared code in tests to `beforeEach` or `beforeAll`
-* Only write comments to explain the why, not what the code does.
+* Only write comments to explain the why, not what the code does. Do not comment properties, parameters or functions to describe what they are or do, use good names instead.
+* Never commit on your own. Leave changes uncommitted, the user reviews and commits them.
 * Rely on prettier for formatting.
 * Reuse TestContainers when possible, do not spin them up for every single test.
 * Use a fromDomain method for response-dtos. Do not construct the dtos in the constructor.

@@ -139,12 +139,12 @@ export class GetListsHandler implements IQueryHandler<GetListsQuery, GetListsRes
 
     const query = applyDateRange(createListQuery(this.dataSource), 'e', filter);
 
-    if (army) {
-      query.andWhere('l.army = :army', { army });
+    if (army && army.length > 0) {
+      query.andWhere('l.army IN (:...army)', { army });
     }
 
-    if (caster) {
-      query.andWhere('l.caster = :caster', { caster });
+    if (caster && caster.length > 0) {
+      query.andWhere('l.caster IN (:...caster)', { caster });
     }
 
     if (playerId) {

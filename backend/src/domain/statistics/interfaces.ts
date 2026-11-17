@@ -8,7 +8,6 @@ export interface GameRecord {
   wins: number;
   losses: number;
   draws: number;
-  // Draws count as half a win.
   winRate: number | null;
 }
 

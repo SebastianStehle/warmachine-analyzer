@@ -1,5 +1,5 @@
 import { Logger } from '@nestjs/common';
-import { Command, CommandHandler, ICommandHandler } from '@nestjs/cqrs';
+import { Command, CommandBus, CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, EntityManager, In } from 'typeorm';
 import {
@@ -26,6 +26,7 @@ import {
   parseStandings,
   Standing,
 } from 'src/domain/longshanks';
+import { UpdatePrices } from './update-prices';
 
 export type ImportEventStatus = 'imported' | 'skipped';
 
@@ -68,6 +69,7 @@ export class ImportEventHandler implements ICommandHandler<ImportEvent, ImportEv
 
   constructor(
     private readonly client: LongshanksClient,
+    private readonly commandBus: CommandBus,
     @InjectDataSource()
     private readonly dataSource: DataSource,
   ) {}
@@ -112,6 +114,8 @@ export class ImportEventHandler implements ICommandHandler<ImportEvent, ImportEv
     }
 
     const listCount = await this.dataSource.transaction((manager) => this.save(manager, matcher, event, standings, games, lists));
+
+    await this.commandBus.execute(new UpdatePrices(eventId));
 
     this.logger.log(
       `Imported event ${eventId} (${event.name}): ${standings.length} players, ${listCount} lists, ${games.length} games.`,

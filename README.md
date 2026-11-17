@@ -28,6 +28,7 @@ npm run crawl -- --from 2025-01-01 --parallel 3 # import 3 events at once
 npm run crawl -- --reparse                     # re-parse everything from stored pages, no downloads
 npm run crawl -- --catalog                     # load factions, armies and models from the wiki into the catalog file and import it
 npm run crawl -- --catalog --reparse           # the same, then re-parse all lists against the new catalog
+npm run crawl -- --shop                        # import the products of the shop and calculate the price of every list
 npm run prune                                  # drop all tables to start from scratch (including the page cache)
 ```
 
@@ -64,6 +65,12 @@ Factions, armies and models come from the army indexes of the [Warmachine Academ
 Only armies that have an index in the wiki are analyzed. Lists of other armies (e.g. Legacy armies) are not stored, and players of those armies show up without an army.
 
 Every list entry is matched to a model of its army: exact names first, then names without numbers, then small spelling errors (edit distance, more typos allowed for longer names). Entries that match no model are kept with their name as written and shown as "Other". Equipment and weapons of warjacks and warbeasts never match and are hidden with "Show equipment".
+
+## Prices from the shop
+
+`npm run crawl -- --shop` reads all products of the official shop [warmachine.gg](https://warmachine.gg) from its product feed in the configured currency (`SHOP_CURRENCY`, default EUR). The models of a product come from the "What's in the box?" section of the description, or from the title for single kits. They are matched to the models of the wiki with the same matching as list entries, using the army tags of the product. Chassis variants are skipped, they come without weapons and heads.
+
+The price of a list is the cheapest combination of products that contains every model of the list, calculated as an integer program with the HiGHS solver. A box can be cheaper than the single kits, and products are bought several times when a list needs a model more often. Models the shop does not sell are shown below the products and are not part of the price. Prices are calculated again after every shop import and event import, the scheduled crawl imports the shop as well.
 
 ## Reading the numbers
 

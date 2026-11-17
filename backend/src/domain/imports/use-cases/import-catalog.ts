@@ -40,7 +40,14 @@ export class ImportCatalogHandler implements ICommandHandler<ImportCatalog, Impo
     if (models.length > 0) {
       await manager.upsert(
         ModelEntity,
-        models.map(({ name, type, wikiPage, aliases }) => ({ name, type, wikiPage, aliases })),
+        // Catalog files written before images were crawled have no image.
+        models.map(({ name, type, wikiPage, aliases, imageUrl }) => ({
+          name,
+          type,
+          wikiPage,
+          aliases,
+          imageUrl: imageUrl ?? null,
+        })),
         ['name'],
       );
     }

@@ -44,6 +44,13 @@ There is no API, but everything we need is public HTML — no login required. Th
 - `ImportCatalog` upserts factions, armies, models and army models by name from the catalog file. `CatalogSeeder` runs it on startup when the database has no models.
 - List entries are matched to models in app code (`ModelMatcher`, Levenshtein distance), not in the database, so the matching stays DB-agnostic and testable. Unmatched entries keep `modelId = null`; keep the name as written.
 
+## Data source: Shop
+
+- Products come from the Shopify product feed of https://warmachine.gg (`/products.json?limit=250&page=N&currency=EUR`), paged until an empty page. Keep the shop code in `backend/src/domain/shop/` (client, parser, pricing).
+- The contents of a product are parsed from the "What's in the box?" list of the description (`Name (Type)`, optional quantity like `3 x`), otherwise from the title. Matching to models uses `ModelMatcher` with the army tags of the product (`warmachine-house-kallyss`).
+- `ImportShop` upserts products by Shopify id, replaces their models, deletes products that disappeared and runs `UpdatePrices`. `ImportEvent` runs `UpdatePrices` for its lists.
+- `findCheapestProducts` solves the cheapest product combination per list as an integer program with HiGHS (`highs` package). Prices are stored in cents.
+
 ## Domain
 
 - **Event** — Longshanks event id, name, date, location, format (e.g. Steamroller, Iron Gauntlet), points level, player count.
@@ -82,6 +89,7 @@ Backend only:
 - `npm run crawl -- --event <id>` or `npm run crawl -- --from <date> [--to <date>] [--parallel <n>]` — import from Longshanks. `--refresh` ignores the page cache.
 - `npm run crawl -- --reparse` — re-parse all imported events from stored pages, without downloading. Run it after parser changes.
 - `npm run prune` — drop all tables, including the page cache. Migrations and the catalog seed run again on the next start.
+- `npm run crawl -- --shop` — import the shop products and calculate the price of every list.
 - `npm run crawl -- --catalog [--reparse]` — load factions, armies and models from the wiki into `catalog.json` and import it, optionally re-parse all events.
 - `npm run typeorm:generate-migrations <Name>` — generate TypeORM migrations (data source: `src/domain/database/data-source.ts`).
 
@@ -104,7 +112,7 @@ Only the OpenAPI spec is committed. The API client is generated from it and is g
 ### Backend
 
 - **CQRS pattern** (@nestjs/cqrs): all domain logic lives in `src/domain/<area>/use-cases/` as `Command`/`Query` classes with co-located `@CommandHandler`/`@QueryHandler` classes. Controllers in `src/controllers/` are thin — they dispatch to the bus and map results to DTOs.
-- **Domain areas** (`src/domain/`): `database` (entities, migrations, `CoreModule` with config + TypeORM + CQRS shared by API and CLI), `longshanks` (HTTP client with page cache, HTML parsers), `wiki` (wiki client, army index parser), `catalog` (catalog file format and builder), `imports` (`ImportEvent`, `DiscoverEvents`, scheduler), `lists` (list parser, model matcher, list queries), `events`, `statistics`.
+- **Domain areas** (`src/domain/`): `database` (entities, migrations, `CoreModule` with config + TypeORM + CQRS shared by API and CLI), `longshanks` (HTTP client with page cache, HTML parsers), `wiki` (wiki client, army index parser), `shop` (shop client, product parser, pricing), `catalog` (catalog file format and builder), `imports` (`ImportEvent`, `DiscoverEvents`, scheduler), `lists` (list parser, model matcher, list queries), `events`, `statistics`.
 - An import replaces all rows of the event in one transaction, so imports are idempotent.
 - Games are linked to the played list by comparing the game leader with the list caster (`isSameCaster`, tolerant to typos). Players with a single list always get that list.
 - Parser tests are built around real data: `test/fixtures/lists/*.txt` are real list texts from Longshanks (one per quirk), `test/fixtures/*.html` are trimmed real pages. When a list parses wrongly, add the real text as a fixture and a test for it before fixing the parser.
@@ -207,4 +215,4 @@ or
 ### Backend Migration
 
 * Run `npm run typeorm:generate-migrations <NAME_OF_MIGRATION>` in the `backend` directory.
-* During development the schema is rebuilt from scratch: there is a single `Init` migration. After schema changes, regenerate it and rebuild the database with `npm run prune` and a new crawl instead of adding migrations.
+* Every schema change gets a new migration. Never change or regenerate existing migrations, the database holds crawled data that must survive updates.

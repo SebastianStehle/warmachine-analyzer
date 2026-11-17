@@ -8,6 +8,7 @@ import { PostgresConnectionOptions } from 'typeorm/driver/postgres/PostgresConne
 import { inject } from 'vitest';
 import AppDataSource from 'src/domain/database/data-source';
 import { longshanksConfig } from 'src/domain/longshanks/config';
+import { shopConfig } from 'src/domain/shop/config';
 import { wikiConfig } from 'src/domain/wiki/config';
 import { runAdminStatement, withDatabase } from './database';
 
@@ -33,7 +34,7 @@ export async function createIntegrationTest(
   let builder = Test.createTestingModule({
     ...metadata,
     imports: [
-      ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true, load: [longshanksConfig, wikiConfig] }),
+      ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true, load: [longshanksConfig, shopConfig, wikiConfig] }),
       CqrsModule.forRoot(),
       TypeOrmModule.forRoot({
         ...options,

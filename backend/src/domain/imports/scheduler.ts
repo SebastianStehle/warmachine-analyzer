@@ -4,7 +4,7 @@ import { CommandBus } from '@nestjs/cqrs';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob } from 'cron';
 import { LongshanksConfig } from 'src/domain/longshanks';
-import { DiscoverEvents } from './use-cases';
+import { DiscoverEvents, ImportShop } from './use-cases';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -44,6 +44,9 @@ export class CrawlerScheduler implements OnApplicationBootstrap {
       const from = new Date(to.getTime() - lookbackDays * DAY_MS);
 
       await this.commandBus.execute(new DiscoverEvents(from.toISOString().substring(0, 10), to.toISOString().substring(0, 10)));
+
+      // Prices change, so the shop is crawled with the events.
+      await this.commandBus.execute(new ImportShop());
     } catch (error) {
       this.logger.error(`Scheduled crawl failed: ${error}`);
     } finally {

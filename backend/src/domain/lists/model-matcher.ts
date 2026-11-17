@@ -59,6 +59,24 @@ export class ModelMatcher {
         }
       }
     }
+
+    // The shop and some lists shorten names like "Gwyn Faryll, the Misery of Merywyn". Several models of the same
+    // character share the short name, then it is ambiguous and not used.
+    const shortNames = new Map<string, CatalogModel[]>();
+    for (const model of models) {
+      const separator = model.name.indexOf(',');
+      if (separator > 0) {
+        const key = normalizeName(model.name.substring(0, separator));
+        shortNames.set(key, [...(shortNames.get(key) ?? []), model]);
+      }
+    }
+
+    for (const [key, candidates] of shortNames) {
+      if (candidates.length === 1 && !this.byKey.has(key)) {
+        this.byKey.set(key, candidates[0]);
+        this.keys.push({ key, model: candidates[0] });
+      }
+    }
   }
 
   // Longshanks and the wiki name some armies differently, e.g. "Kithguard" and "Southern Kriels Kithguard".

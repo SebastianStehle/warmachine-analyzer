@@ -282,6 +282,7 @@ export function FactionPage() {
                 </span>
               }
               title={army}
+              actions={<Link href={listsLink(army, {})}>All lists of this army</Link>}
             />
 
             <div className="grid grid-cols-2 gap-4 md:grid-cols-4">

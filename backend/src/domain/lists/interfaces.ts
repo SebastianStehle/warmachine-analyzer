@@ -1,11 +1,13 @@
 import { PageRequest, SortRequest } from 'src/domain/common/query';
 import { GameResult, ListEntryKind, ModelType } from 'src/domain/database';
 
-export type ListSortField = 'date' | 'event' | 'player' | 'rank' | 'army' | 'caster';
+export type ListSortField = 'date' | 'event' | 'player' | 'rank' | 'army' | 'caster' | 'points' | 'price';
 
 export interface ListFilter extends PageRequest, SortRequest<ListSortField> {
   army?: string[];
   caster?: string[];
+  pointLevel?: number[];
+  maxRank?: number;
   unit?: string;
   playerId?: number;
   eventId?: number;
@@ -20,7 +22,10 @@ export interface ListSummary {
   faction: string | null;
   army: string;
   caster: string | null;
+  pointLevel: number | null;
   totalPoints: number | null;
+  price: number | null;
+  currency: string | null;
   eventId: number;
   eventName: string;
   eventDate: string;
@@ -56,14 +61,30 @@ export interface ListGame {
   armyPoints: number | null;
 }
 
+export interface ListProduct {
+  title: string;
+  url: string;
+  imageUrl: string | null;
+  price: number;
+  quantity: number;
+  available: boolean;
+}
+
 export interface ListDetails extends ListSummary {
+  casterImageUrl: string | null;
   format: string | null;
-  pointLevel: number | null;
   rawText: string;
   commandCards: string[];
   warnings: string[];
   entries: ListEntry[];
   playedGames: ListGame[];
+  products: ListProduct[];
+  unpricedModels: string[];
+}
+
+export interface PointLevelOption {
+  pointLevel: number;
+  lists: number;
 }
 
 export interface CasterOption {

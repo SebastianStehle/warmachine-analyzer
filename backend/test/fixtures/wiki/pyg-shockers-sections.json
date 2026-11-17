@@ -1,0 +1,71 @@
+{
+  "parse": {
+    "title": "Pyg Shockers",
+    "tocdata": {
+      "sections": [
+        {
+          "tocLevel": 1,
+          "hLevel": 1,
+          "line": "Pyg Shockers"
+        },
+        {
+          "tocLevel": 2,
+          "hLevel": 2,
+          "line": "Statistics"
+        },
+        {
+          "tocLevel": 3,
+          "hLevel": 3,
+          "line": "Abilities:"
+        },
+        {
+          "tocLevel": 3,
+          "hLevel": 3,
+          "line": "Weapons"
+        },
+        {
+          "tocLevel": 1,
+          "hLevel": 1,
+          "line": "Command Attachment: Pyg Coxswain"
+        },
+        {
+          "tocLevel": 2,
+          "hLevel": 2,
+          "line": "Statistics"
+        },
+        {
+          "tocLevel": 3,
+          "hLevel": 3,
+          "line": "Abilities:"
+        },
+        {
+          "tocLevel": 3,
+          "hLevel": 3,
+          "line": "Weapons"
+        },
+        {
+          "tocLevel": 2,
+          "hLevel": 2,
+          "line": "Role and strengths"
+        },
+        {
+          "tocLevel": 2,
+          "hLevel": 2,
+          "line": "Downsides"
+        },
+        {
+          "tocLevel": 2,
+          "hLevel": 2,
+          "line": "Synergy"
+        },
+        {
+          "tocLevel": 2,
+          "hLevel": 2,
+          "line": "Tricks"
+        }
+      ],
+      "extensionData": []
+    },
+    "showtoc": true
+  }
+}

@@ -20,4 +20,7 @@ export class ModelEntity {
 
   @Column('simple-json')
   aliases: string[];
+
+  @Column('varchar', { length: 500, nullable: true })
+  imageUrl: string | null;
 }

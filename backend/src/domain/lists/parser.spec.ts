@@ -154,6 +154,35 @@ describe('parseArmyLists', () => {
     expect(stub.warnings).toContain('No entries found.');
   });
 
+  it('should split lists that follow each other without a total line', () => {
+    const lists = parseFixture('brineblood-two-lists-without-totals');
+
+    expect(lists.map(summarize)).toEqual([
+      {
+        title: "Jay-Quillin', are you here? What about Ay-Ay-ron?",
+        faction: 'Southern Kriels',
+        army: 'Brineblood Marauders',
+        format: 'Grand Melee',
+        pointLevel: 100,
+        totalPoints: null,
+        caster: 'Captain Firequill',
+        warnings: [],
+      },
+      {
+        title: "she shadowtongued my Scuttlebutt until I GoO'd",
+        faction: 'Southern Kriels',
+        army: 'Brineblood Marauders',
+        format: 'Grand Melee',
+        pointLevel: 100,
+        totalPoints: null,
+        caster: 'Captain Shadowtongue',
+        warnings: [],
+      },
+    ]);
+    expect(lists[0].entries[lists[0].entries.length - 1].name).toEqual('Spirit Shamans');
+    expect(lists[1].entries[lists[1].entries.length - 1].name).toEqual('Pyg Boarding Party');
+  });
+
   it('should restart the header when an empty list is followed by another list in the same record', () => {
     const [list] = parseFixture('necrofactorium-empty-list-before-list');
 

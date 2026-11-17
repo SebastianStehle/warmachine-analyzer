@@ -14,7 +14,7 @@ export interface MultiSelectProps {
   onChange: (selected: string[]) => void;
 }
 
-const byName = (a: string, b: string) => a.localeCompare(b, undefined, { sensitivity: 'base' });
+const byName = (a: string, b: string) => a.localeCompare(b, undefined, { sensitivity: 'base', numeric: true });
 
 function toGroups(options: string[] | MultiSelectGroup[], selected: string[]): MultiSelectGroup[] {
   const groups: MultiSelectGroup[] = options.map((option) =>
@@ -57,7 +57,7 @@ export function MultiSelect({ options, selected, placeholder, onChange }: MultiS
       onChange={(keys) => onChange([...new Set((keys as Key[]).map(toValue))])}
     >
       <Autocomplete.Trigger>
-        <Autocomplete.Value />
+        <Autocomplete.Value className="min-w-0 truncate" />
         <Autocomplete.ClearButton />
         <Autocomplete.Indicator />
       </Autocomplete.Trigger>
@@ -75,10 +75,16 @@ export function MultiSelect({ options, selected, placeholder, onChange }: MultiS
               <Fragment key={label || 'ungrouped'}>
                 {index > 0 && <Separator />}
                 <ListBox.Section>
-                  {label && <Header>{label}</Header>}
+                  {label && (
+                    <Header className="truncate" title={label}>
+                      {label}
+                    </Header>
+                  )}
                   {values.map((value) => (
                     <ListBox.Item key={toKey(label, value)} id={toKey(label, value)} textValue={value}>
-                      {value}
+                      <span className="min-w-0 flex-1 truncate" title={value}>
+                        {value}
+                      </span>
                       <ListBox.ItemIndicator />
                     </ListBox.Item>
                   ))}

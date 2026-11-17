@@ -36,6 +36,7 @@ const ENTRY_LINE = /^\s*(\d+)?\s*(\S.*?)\s*$/;
 // Modules and equipment are written with an upper case slot, e.g. "HEAD - Focus Vault", "RIGHT HEX BLADE - Force Generator" or "DEFENSE 1 - Barrier".
 const MODULE_NAME = /^[A-Z][A-Z0-9 '&/.]*? - /;
 const NUMBER_SUFFIX = /\s+\d+$/;
+const PRICED_ENTRY = /^\s*\d+\s+\S/;
 const VALIDATION_LINE = /^(ERRORS?:|WARNINGS?:|•)/i;
 const MIN_FUZZY_LENGTH = 6;
 const MAX_TYPOS = 2;
@@ -53,6 +54,13 @@ export function parseArmyLists(text: string): ParsedList[] {
       continue;
     }
 
+    // Lists without a total line follow each other directly, the next one starts with its title and faction line.
+    if (FORMAT_LINE.test(line.trim()) && hasPricedEntries(block)) {
+      const header = takeHeader(block);
+      result.push(parseArmyList(block));
+      block = header;
+    }
+
     block.push(line);
 
     if (TOTAL_POINTS.test(line.trim())) {
@@ -66,6 +74,20 @@ export function parseArmyLists(text: string): ParsedList[] {
   }
 
   return result;
+}
+
+function hasPricedEntries(block: string[]) {
+  const format = block.findIndex((line) => FORMAT_LINE.test(line.trim()));
+  return format >= 0 && block.slice(format + 1).some((line) => PRICED_ENTRY.test(line));
+}
+
+function takeHeader(block: string[]) {
+  let start = block.length;
+  while (start > 0 && block[start - 1].trim() && !PRICED_ENTRY.test(block[start - 1])) {
+    start--;
+  }
+
+  return block.splice(start);
 }
 
 function parseArmyList(lines: string[]): ParsedList {

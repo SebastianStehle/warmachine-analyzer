@@ -153,6 +153,20 @@ paths:
             type: array
             items:
               type: string
+        - name: pointLevel
+          required: false
+          in: query
+          description: Only lists for these point levels.
+          schema:
+            type: array
+            items:
+              type: number
+        - name: maxRank
+          required: false
+          in: query
+          description: Only lists of players who placed at this rank or better.
+          schema:
+            type: number
         - name: unit
           required: false
           in: query
@@ -201,6 +215,33 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CasterOptionsDto"
+      summary: ""
+      tags:
+        - lists
+  /api/lists/point-levels:
+    get:
+      description: Gets the point levels of the lists.
+      operationId: getPointLevels
+      parameters:
+        - name: from
+          required: false
+          in: query
+          description: Only include events on or after this date (YYYY-MM-DD).
+          schema:
+            type: string
+        - name: to
+          required: false
+          in: query
+          description: Only include events on or before this date (YYYY-MM-DD).
+          schema:
+            type: string
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PointLevelOptionsDto"
       summary: ""
       tags:
         - lists
@@ -561,6 +602,8 @@ components:
         - rank
         - army
         - caster
+        - points
+        - price
     ListSummaryDto:
       type: object
       properties:
@@ -581,9 +624,22 @@ components:
           type: string
           description: The caster.
           nullable: true
+        pointLevel:
+          type: number
+          description: The point level of the game.
+          nullable: true
         totalPoints:
           type: number
           description: The total points.
+          nullable: true
+        price:
+          type: number
+          description: The price of the cheapest products that contain the models of the
+            list, in cents.
+          nullable: true
+        currency:
+          type: string
+          description: The currency of the price.
           nullable: true
         eventId:
           type: number
@@ -627,7 +683,10 @@ components:
         - faction
         - army
         - caster
+        - pointLevel
         - totalPoints
+        - price
+        - currency
         - eventId
         - eventName
         - eventDate
@@ -677,6 +736,28 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/CasterOptionDto"
+      required:
+        - items
+    PointLevelOptionDto:
+      type: object
+      properties:
+        pointLevel:
+          type: number
+          description: The point level of the game.
+        lists:
+          type: number
+          description: The number of lists for this point level.
+      required:
+        - pointLevel
+        - lists
+    PointLevelOptionsDto:
+      type: object
+      properties:
+        items:
+          description: The point levels.
+          type: array
+          items:
+            $ref: "#/components/schemas/PointLevelOptionDto"
       required:
         - items
     ListEntryKind:
@@ -791,6 +872,35 @@ components:
         - result
         - controlPoints
         - armyPoints
+    ListProductDto:
+      type: object
+      properties:
+        title:
+          type: string
+          description: The name of the product.
+        url:
+          type: string
+          description: The link to the product in the shop.
+        imageUrl:
+          type: string
+          description: The image of the product.
+          nullable: true
+        price:
+          type: number
+          description: The price of one product in cents.
+        quantity:
+          type: number
+          description: How often the product is needed.
+        available:
+          type: boolean
+          description: Whether the product can be ordered.
+      required:
+        - title
+        - url
+        - imageUrl
+        - price
+        - quantity
+        - available
     ListDetailsDto:
       type: object
       properties:
@@ -811,9 +921,22 @@ components:
           type: string
           description: The caster.
           nullable: true
+        pointLevel:
+          type: number
+          description: The point level of the game.
+          nullable: true
         totalPoints:
           type: number
           description: The total points.
+          nullable: true
+        price:
+          type: number
+          description: The price of the cheapest products that contain the models of the
+            list, in cents.
+          nullable: true
+        currency:
+          type: string
+          description: The currency of the price.
           nullable: true
         eventId:
           type: number
@@ -851,13 +974,13 @@ components:
         wins:
           type: number
           description: The games won with this list.
+        casterImageUrl:
+          type: string
+          description: The picture of the caster from the wiki.
+          nullable: true
         format:
           type: string
           description: The game format.
-          nullable: true
-        pointLevel:
-          type: number
-          description: The point level.
           nullable: true
         rawText:
           type: string
@@ -882,13 +1005,26 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/ListGameDto"
+        products:
+          description: The cheapest products that contain the models of the list.
+          type: array
+          items:
+            $ref: "#/components/schemas/ListProductDto"
+        unpricedModels:
+          description: Models of the list that are not sold in the shop.
+          type: array
+          items:
+            type: string
       required:
         - id
         - title
         - faction
         - army
         - caster
+        - pointLevel
         - totalPoints
+        - price
+        - currency
         - eventId
         - eventName
         - eventDate
@@ -900,13 +1036,15 @@ components:
         - eventLosses
         - games
         - wins
+        - casterImageUrl
         - format
-        - pointLevel
         - rawText
         - commandCards
         - warnings
         - entries
         - playedGames
+        - products
+        - unpricedModels
     PlayerSortField:
       type: string
       enum:

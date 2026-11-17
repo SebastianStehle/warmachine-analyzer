@@ -4,14 +4,15 @@ import { Logger, Module } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { CommandBus } from '@nestjs/cqrs';
 import { CoreModule } from './domain/database';
-import { DiscoverEvents, ImportEvent, ImportsModule, ReparseEvents, UpdateCatalog } from './domain/imports';
+import { DiscoverEvents, ImportEvent, ImportShop, ImportsModule, ReparseEvents, UpdateCatalog } from './domain/imports';
 
 const USAGE = `Usage:
   npm run crawl -- --event <id> [--refresh]
   npm run crawl -- --from <YYYY-MM-DD> [--to <YYYY-MM-DD>] [--parallel <events>] [--refresh]
   npm run crawl -- --reparse     re-parse all imported events from stored pages, without downloading
   npm run crawl -- --catalog     load factions, armies and models from the wiki into the catalog file and import it
-  npm run crawl -- --catalog --reparse   the same, then re-parse all events so lists use the new catalog`;
+  npm run crawl -- --catalog --reparse   the same, then re-parse all events so lists use the new catalog
+  npm run crawl -- --shop        import the products of the shop and calculate the price of every list`;
 
 @Module({
   imports: [CoreModule, ImportsModule],
@@ -28,11 +29,12 @@ async function crawl() {
       parallel: { type: 'string' },
       reparse: { type: 'boolean', default: false },
       catalog: { type: 'boolean', default: false },
+      shop: { type: 'boolean', default: false },
     },
   });
 
-  const { event, from, to, refresh, parallel, reparse, catalog } = values;
-  if (!event && !from && !reparse && !catalog) {
+  const { event, from, to, refresh, parallel, reparse, catalog, shop } = values;
+  if (!event && !from && !reparse && !catalog && !shop) {
     console.log(USAGE);
     process.exit(1);
   }
@@ -45,6 +47,11 @@ async function crawl() {
     if (catalog) {
       const { armies, models } = await commandBus.execute(new UpdateCatalog());
       logger.log(`Imported ${armies} armies with ${models} models.`);
+    }
+
+    if (shop) {
+      const { products, lists } = await commandBus.execute(new ImportShop());
+      logger.log(`Imported ${products} products, updated the price of ${lists} lists.`);
     }
 
     if (reparse) {

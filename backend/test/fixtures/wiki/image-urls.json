@@ -1,0 +1,35 @@
+{
+  "batchcomplete": true,
+  "query": {
+    "normalized": [
+      {
+        "from": "File:Arkadius 1.webp",
+        "to": "File:Arkadius 1.webp"
+      }
+    ],
+    "pages": [
+      {
+        "ns": 6,
+        "title": "File:Hellyth1.jpg",
+        "imagerepository": "local",
+        "imageinfo": [
+          {
+            "thumburl": "https://static.wikitide.net/warmachineacademywiki/thumb/2/2e/Hellyth1.jpg/400px-Hellyth1.jpg",
+            "url": "https://static.wikitide.net/warmachineacademywiki/2/2e/Hellyth1.jpg"
+          }
+        ]
+      },
+      {
+        "ns": 6,
+        "title": "File:Arkadius 1.webp",
+        "imagerepository": "local",
+        "imageinfo": [
+          {
+            "thumburl": "https://static.wikitide.net/warmachineacademywiki/thumb/e/e2/Arkadius_1.webp/400px-Arkadius_1.webp.png",
+            "url": "https://static.wikitide.net/warmachineacademywiki/e/e2/Arkadius_1.webp"
+          }
+        ]
+      }
+    ]
+  }
+}

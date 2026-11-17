@@ -1,3 +1,4 @@
-import { Init1794942186322 } from './1794942186322-Init';
+import { Init1794946020075 } from './1794946020075-Init';
+import { ModelImage1795046400000 } from './1795046400000-ModelImage';
 
-export const ALL_MIGRATIONS = [Init1794942186322];
+export const ALL_MIGRATIONS = [Init1794946020075, ModelImage1795046400000];

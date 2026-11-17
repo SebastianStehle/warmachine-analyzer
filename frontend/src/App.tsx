@@ -23,12 +23,20 @@ const queryClient = new QueryClient({
   },
 });
 
+const ABSOLUTE_URL = /^([a-z][a-z0-9+.-]*:)?\/\//i;
+
+// The router resolves every href relative to the current route, which breaks links to other sites.
+function useAppHref(href: string) {
+  const resolved = useHref(href);
+  return ABSOLUTE_URL.test(href) ? href : resolved;
+}
+
 // Links and table rows of HeroUI navigate with the router instead of reloading the page.
 function AriaRouter({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
 
   return (
-    <RouterProvider navigate={navigate} useHref={useHref}>
+    <RouterProvider navigate={navigate} useHref={useAppHref}>
       {children}
     </RouterProvider>
   );

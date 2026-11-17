@@ -61,6 +61,13 @@ export class ArmyListEntity {
   @Column('int', { nullable: true })
   totalPoints: number | null;
 
+  @Index()
+  @Column('int', { nullable: true })
+  price: number | null;
+
+  @Column('int', { default: 0 })
+  unpricedModels: number;
+
   @Column('simple-json')
   commandCards: string[];
 

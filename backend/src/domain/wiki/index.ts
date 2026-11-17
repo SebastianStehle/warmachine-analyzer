@@ -3,6 +3,7 @@ import { WikiClient } from './client';
 
 export * from './client';
 export * from './config';
+export * from './images';
 export * from './indexes';
 export * from './parsers';
 

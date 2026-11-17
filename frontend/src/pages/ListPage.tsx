@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import classNames from 'classnames';
 import { useParams } from 'react-router-dom';
 import { GameResult, ListEntryKind, useClients } from 'src/api';
-import { ArmyLink, EventLink, ModelTypeBadge, PageHeader, PlayerLink, QueryState, WikiLink } from 'src/components';
+import { ArmyLink, EventLink, ListProducts, ModelTypeBadge, PageHeader, PlayerLink, QueryState, WikiLink } from 'src/components';
 import { LONGSHANKS_URL } from 'src/lib/factions';
 import { usePreferences } from 'src/lib/preferences';
 
@@ -39,6 +39,7 @@ export function ListPage() {
             <PageHeader
               kicker={<ArmyLink army={data.army} faction={data.faction} />}
               title={data.caster ?? data.title}
+              image={data.casterImageUrl}
               description={
                 <>
                   “{data.title}” by <PlayerLink id={data.playerId}>{data.playerName}</PlayerLink> at{' '}
@@ -121,58 +122,62 @@ export function ListPage() {
                 </Disclosure>
               </Card>
 
-              <Card>
-                <div className="flex items-baseline justify-between">
-                  <h2 className="text-xl font-semibold">Games played with this list</h2>
-                  <Link className="text-sm" href={`${LONGSHANKS_URL}/event/${data.eventId}/`} target="_blank" rel="noreferrer">
-                    Longshanks
-                    <Link.Icon />
-                  </Link>
-                </div>
+              <div className="flex flex-col gap-6">
+                <ListProducts list={data} />
 
-                {data.playedGames.length === 0 ? (
-                  <p className="mt-2 text-sm">No games could be linked to this list.</p>
-                ) : (
-                  <Table>
-                    <Table.ScrollContainer>
-                      <Table.Content aria-label="Games played with this list">
-                        <Table.Header>
-                          <Table.Column>Round</Table.Column>
-                          <Table.Column isRowHeader>Opponent</Table.Column>
-                          <Table.Column>Scenario</Table.Column>
-                          <Table.Column>Result</Table.Column>
-                          <Table.Column>CP / AP</Table.Column>
-                        </Table.Header>
-                        <Table.Body>
-                          {data.playedGames.map((game) => (
-                            <Table.Row key={game.round} id={game.round}>
-                              <Table.Cell>{game.round}</Table.Cell>
-                              <Table.Cell>
-                                <PlayerLink id={game.opponentId}>{game.opponentName ?? 'Bye'}</PlayerLink>
-                                {game.opponentArmy && (
-                                  <div className="text-muted text-xs">
-                                    {game.opponentArmy}
-                                    {game.opponentCaster && ` – ${game.opponentCaster}`}
-                                  </div>
-                                )}
-                              </Table.Cell>
-                              <Table.Cell>{game.scenario ?? '–'}</Table.Cell>
-                              <Table.Cell>
-                                <Chip size="sm" color={RESULT_COLORS[game.result]}>
-                                  {game.result}
-                                </Chip>
-                              </Table.Cell>
-                              <Table.Cell className="whitespace-nowrap tabular-nums">
-                                {game.controlPoints ?? '–'} / {game.armyPoints ?? '–'}
-                              </Table.Cell>
-                            </Table.Row>
-                          ))}
-                        </Table.Body>
-                      </Table.Content>
-                    </Table.ScrollContainer>
-                  </Table>
-                )}
-              </Card>
+                <Card>
+                  <div className="flex items-baseline justify-between">
+                    <h2 className="text-xl font-semibold">Games played with this list</h2>
+                    <Link className="text-sm" href={`${LONGSHANKS_URL}/event/${data.eventId}/`} target="_blank" rel="noreferrer">
+                      Longshanks
+                      <Link.Icon />
+                    </Link>
+                  </div>
+
+                  {data.playedGames.length === 0 ? (
+                    <p className="mt-2 text-sm">No games could be linked to this list.</p>
+                  ) : (
+                    <Table>
+                      <Table.ScrollContainer>
+                        <Table.Content aria-label="Games played with this list">
+                          <Table.Header>
+                            <Table.Column>Round</Table.Column>
+                            <Table.Column isRowHeader>Opponent</Table.Column>
+                            <Table.Column>Scenario</Table.Column>
+                            <Table.Column>Result</Table.Column>
+                            <Table.Column>CP / AP</Table.Column>
+                          </Table.Header>
+                          <Table.Body>
+                            {data.playedGames.map((game) => (
+                              <Table.Row key={game.round} id={game.round}>
+                                <Table.Cell>{game.round}</Table.Cell>
+                                <Table.Cell>
+                                  <PlayerLink id={game.opponentId}>{game.opponentName ?? 'Bye'}</PlayerLink>
+                                  {game.opponentArmy && (
+                                    <div className="text-muted text-xs">
+                                      {game.opponentArmy}
+                                      {game.opponentCaster && ` – ${game.opponentCaster}`}
+                                    </div>
+                                  )}
+                                </Table.Cell>
+                                <Table.Cell>{game.scenario ?? '–'}</Table.Cell>
+                                <Table.Cell>
+                                  <Chip size="sm" color={RESULT_COLORS[game.result]}>
+                                    {game.result}
+                                  </Chip>
+                                </Table.Cell>
+                                <Table.Cell className="whitespace-nowrap tabular-nums">
+                                  {game.controlPoints ?? '–'} / {game.armyPoints ?? '–'}
+                                </Table.Cell>
+                              </Table.Row>
+                            ))}
+                          </Table.Body>
+                        </Table.Content>
+                      </Table.ScrollContainer>
+                    </Table>
+                  )}
+                </Card>
+              </div>
             </div>
           </>
         )}

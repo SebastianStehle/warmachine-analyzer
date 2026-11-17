@@ -8,6 +8,7 @@ export interface CatalogModelData {
   type: ModelType | null;
   wikiPage: string | null;
   aliases: string[];
+  imageUrl: string | null;
 }
 
 export interface CatalogArmyModelData {
@@ -37,7 +38,7 @@ const byName = <T extends { name: string }>(a: T, b: T) => a.name.localeCompare(
 
 // Models appear in the indexes of several armies (mercenaries, allies), so they are merged by name. The output is sorted
 // to keep the diff of the catalog file small when the wiki changes.
-export function buildCatalog(indexes: ArmyIndex[]): CatalogData {
+export function buildCatalog(indexes: ArmyIndex[], images = new Map<string, string>()): CatalogData {
   const models = new Map<string, { name: string; type: ModelType | null; wikiPage: string | null; aliases: Set<string> }>();
   const armies = new Map<string, CatalogArmyData>();
 
@@ -70,7 +71,13 @@ export function buildCatalog(indexes: ArmyIndex[]): CatalogData {
   return {
     armies: [...armies.values()].map((army) => ({ ...army, models: [...army.models].sort(byName) })).sort(byName),
     models: [...models.values()]
-      .map(({ name, type, wikiPage, aliases }) => ({ name, type, wikiPage, aliases: [...aliases].sort() }))
+      .map(({ name, type, wikiPage, aliases }) => ({
+        name,
+        type,
+        wikiPage,
+        aliases: [...aliases].sort(),
+        imageUrl: (wikiPage && images.get(wikiPage)) ?? null,
+      }))
       .sort(byName),
   };
 }

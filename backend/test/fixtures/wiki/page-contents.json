@@ -1,0 +1,61 @@
+{
+  "batchcomplete": true,
+  "query": {
+    "redirects": [
+      {
+        "from": "Exulon Nostilla & Aberration",
+        "to": "Exulon Nostilla"
+      }
+    ],
+    "pages": [
+      {
+        "pageid": 60,
+        "ns": 0,
+        "title": "Hellyth, Scyir of Nightfall",
+        "revisions": [
+          {
+            "slots": {
+              "main": {
+                "contentmodel": "wikitext",
+                "contentformat": "text/x-wiki",
+                "content": "= {{PAGENAME}} =\n[[File:Hellyth1.jpg|thumb|right|Hellyth, Scyir of Nightfall]]\n== Weapons ==\n[[File:Melee Icon.png]]"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "pageid": 2398,
+        "ns": 0,
+        "title": "Dr. Arkadius",
+        "revisions": [
+          {
+            "slots": {
+              "main": {
+                "contentmodel": "wikitext",
+                "contentformat": "text/x-wiki",
+                "content": "= {{PAGENAME}} =\n[[File:Arkadius 1.webp|thumb|right]]"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "pageid": 999,
+        "ns": 0,
+        "title": "Exulon Nostilla",
+        "revisions": [
+          {
+            "slots": {
+              "main": {
+                "contentmodel": "wikitext",
+                "contentformat": "text/x-wiki",
+                "content": "= {{PAGENAME}} =\n[[File:Exulon Nostilla and Aberration.webp|thumb|Exulon Nostilla & Aberration]]"
+              }
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,101 @@
+{
+  "parse": {
+    "title": "Marauder Crew",
+    "tocdata": {
+      "sections": [
+        {
+          "tocLevel": 1,
+          "hLevel": 1,
+          "line": "Marauder Crew"
+        },
+        {
+          "tocLevel": 2,
+          "hLevel": 2,
+          "line": "Statistics"
+        },
+        {
+          "tocLevel": 3,
+          "hLevel": 3,
+          "line": "Abilities"
+        },
+        {
+          "tocLevel": 3,
+          "hLevel": 3,
+          "line": "Weapons"
+        },
+        {
+          "tocLevel": 2,
+          "hLevel": 2,
+          "line": "Command Attachment: Bosun"
+        },
+        {
+          "tocLevel": 3,
+          "hLevel": 3,
+          "line": "Abilities"
+        },
+        {
+          "tocLevel": 3,
+          "hLevel": 3,
+          "line": "Weapons"
+        },
+        {
+          "tocLevel": 2,
+          "hLevel": 2,
+          "line": "Command Attachment: Quartermaster"
+        },
+        {
+          "tocLevel": 3,
+          "hLevel": 3,
+          "line": "Abilities"
+        },
+        {
+          "tocLevel": 3,
+          "hLevel": 3,
+          "line": "Weapons"
+        },
+        {
+          "tocLevel": 2,
+          "hLevel": 2,
+          "line": "Command Attachment: Tapper"
+        },
+        {
+          "tocLevel": 2,
+          "hLevel": 2,
+          "line": "Statistics"
+        },
+        {
+          "tocLevel": 3,
+          "hLevel": 3,
+          "line": "Abilities"
+        },
+        {
+          "tocLevel": 3,
+          "hLevel": 3,
+          "line": "Weapons"
+        },
+        {
+          "tocLevel": 2,
+          "hLevel": 2,
+          "line": "Role and Strengths:"
+        },
+        {
+          "tocLevel": 2,
+          "hLevel": 2,
+          "line": "Downsides:"
+        },
+        {
+          "tocLevel": 2,
+          "hLevel": 2,
+          "line": "Synergy"
+        },
+        {
+          "tocLevel": 2,
+          "hLevel": 2,
+          "line": "Tricks"
+        }
+      ],
+      "extensionData": []
+    },
+    "showtoc": true
+  }
+}

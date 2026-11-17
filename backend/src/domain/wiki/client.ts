@@ -38,6 +38,59 @@ export class WikiClient {
     return this.get(new URLSearchParams({ action: 'parse', page: title, prop: 'text', format: 'json' }));
   }
 
+  getSections(title: string) {
+    return this.get(new URLSearchParams({ action: 'parse', page: title, prop: 'tocdata', format: 'json', formatversion: '2' }));
+  }
+
+  getPagesUsingTemplate(template: string, from?: string) {
+    const params = new URLSearchParams({
+      action: 'query',
+      list: 'embeddedin',
+      eititle: template,
+      eilimit: String(PAGE_SIZE),
+      format: 'json',
+    });
+
+    if (from) {
+      params.set('eicontinue', from);
+    }
+
+    return this.get(params);
+  }
+
+  getWikitext(title: string) {
+    return this.get(new URLSearchParams({ action: 'parse', page: title, prop: 'wikitext', format: 'json', formatversion: '2' }));
+  }
+
+  getPageContents(titles: string[]) {
+    return this.get(
+      new URLSearchParams({
+        action: 'query',
+        prop: 'revisions',
+        rvprop: 'content',
+        rvslots: 'main',
+        redirects: '1',
+        titles: titles.join('|'),
+        format: 'json',
+        formatversion: '2',
+      }),
+    );
+  }
+
+  getImageUrls(files: string[], width: number) {
+    return this.get(
+      new URLSearchParams({
+        action: 'query',
+        prop: 'imageinfo',
+        iiprop: 'url',
+        iiurlwidth: String(width),
+        titles: files.map((file) => `File:${file}`).join('|'),
+        format: 'json',
+        formatversion: '2',
+      }),
+    );
+  }
+
   private get(params: URLSearchParams) {
     const url = `${this.config.baseUrl}/w/api.php?${params.toString()}`;
 

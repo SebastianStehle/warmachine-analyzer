@@ -1,8 +1,9 @@
 import { Controller, Get, Param, ParseIntPipe, Query } from '@nestjs/common';
 import { QueryBus } from '@nestjs/cqrs';
 import { ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
-import { GetCastersQuery, GetListQuery, GetListsQuery } from 'src/domain/lists';
-import { CasterOptionsDto, CastersQueryDto, ListDetailsDto, ListsDto, ListsQueryDto } from './dtos';
+import { GetCastersQuery, GetListQuery, GetListsQuery, GetPointLevelsQuery } from 'src/domain/lists';
+import { DateRangeQueryDto } from '../shared';
+import { CasterOptionsDto, CastersQueryDto, ListDetailsDto, ListsDto, ListsQueryDto, PointLevelOptionsDto } from './dtos';
 
 @Controller('api/lists')
 @ApiTags('lists')
@@ -25,6 +26,15 @@ export class ListsController {
     const { casters } = await this.queryBus.execute(new GetCastersQuery(army, { from, to }));
 
     return CasterOptionsDto.fromDomain(casters);
+  }
+
+  @Get('point-levels')
+  @ApiOperation({ operationId: 'getPointLevels', description: 'Gets the point levels of the lists.' })
+  @ApiOkResponse({ type: PointLevelOptionsDto })
+  async getPointLevels(@Query() { from, to }: DateRangeQueryDto) {
+    const { pointLevels } = await this.queryBus.execute(new GetPointLevelsQuery({ from, to }));
+
+    return PointLevelOptionsDto.fromDomain(pointLevels);
   }
 
   @Get(':id')

@@ -1,4 +1,4 @@
-import { Button, Table } from '@heroui/react';
+import { Button, Key, ListBox, Select, Table } from '@heroui/react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { ListSortField, SortOrder, useClients } from 'src/api';
@@ -14,17 +14,37 @@ import {
   SortableColumn,
 } from 'src/components';
 import { useDateRange } from 'src/lib/date-range';
+import { formatPrice } from 'src/lib/format';
 import { useServerSort } from 'src/lib/sorting';
 
 const PAGE_SIZE = 50;
 
-type FilterKey = 'unit' | 'playerId' | 'eventId' | 'search' | 'page';
+type FilterKey = 'unit' | 'playerId' | 'eventId' | 'maxRank' | 'search' | 'page';
+
+const ANY_PLACING = 'any';
+
+const PLACINGS = [
+  { maxRank: 1, label: 'Winners' },
+  { maxRank: 3, label: 'Top 3' },
+  { maxRank: 4, label: 'Top 4' },
+  { maxRank: 8, label: 'Top 8' },
+  { maxRank: 16, label: 'Top 16' },
+  { maxRank: 32, label: 'Top 32' },
+];
 
 const FILTER_LABELS: Partial<Record<FilterKey, string>> = {
   unit: 'Contains',
   playerId: 'Player',
   eventId: 'Event',
 };
+
+function formatPoints(totalPoints: number | null, pointLevel: number | null) {
+  if (pointLevel === null) {
+    return totalPoints ?? '–';
+  }
+
+  return `${totalPoints ?? '–'} / ${pointLevel}`;
+}
 
 export function ListsPage() {
   const clients = useClients();
@@ -37,9 +57,11 @@ export function ListsPage() {
 
   const armies = searchParams.getAll('army');
   const casters = searchParams.getAll('caster');
+  const pointLevels = searchParams.getAll('pointLevel');
   const unit = searchParams.get('unit') ?? undefined;
   const playerId = searchParams.get('playerId') ? Number(searchParams.get('playerId')) : undefined;
   const eventId = searchParams.get('eventId') ? Number(searchParams.get('eventId')) : undefined;
+  const maxRank = searchParams.get('maxRank') ? Number(searchParams.get('maxRank')) : undefined;
   const search = searchParams.get('search') ?? '';
   const page = Number(searchParams.get('page') ?? 0);
 
@@ -53,8 +75,13 @@ export function ListsPage() {
     queryFn: () => clients.lists.getCasters(from, to, armies.length > 0 ? armies : undefined),
   });
 
+  const { data: pointLevelOptions } = useQuery({
+    queryKey: ['point-levels', from, to],
+    queryFn: () => clients.lists.getPointLevels(from, to),
+  });
+
   const { data, isLoading, error } = useQuery({
-    queryKey: ['lists', from, to, armies, casters, unit, playerId, eventId, search, sort, order, page],
+    queryKey: ['lists', from, to, armies, casters, pointLevels, maxRank, unit, playerId, eventId, search, sort, order, page],
     queryFn: () =>
       clients.lists.getLists(
         from,
@@ -68,12 +95,14 @@ export function ListsPage() {
         eventId,
         armies.length > 0 ? armies : undefined,
         casters.length > 0 ? casters : undefined,
+        pointLevels.length > 0 ? pointLevels.map(Number) : undefined,
+        maxRank,
         unit,
       ),
     placeholderData: keepPreviousData,
   });
 
-  const setMultiFilter = (key: 'army' | 'caster', selected: string[]) => {
+  const setMultiFilter = (key: 'army' | 'caster' | 'pointLevel', selected: string[]) => {
     const next = new URLSearchParams(searchParams);
     next.delete(key);
     for (const value of selected) {
@@ -143,6 +172,39 @@ export function ListsPage() {
           onChange={(selected) => setMultiFilter('caster', selected)}
         />
 
+        <MultiSelect
+          options={pointLevelOptions?.items.map(({ pointLevel }) => String(pointLevel)) ?? []}
+          selected={pointLevels}
+          placeholder="All point levels"
+          onChange={(selected) => setMultiFilter('pointLevel', selected)}
+        />
+
+        <Select
+          aria-label="Placing"
+          className="w-40"
+          value={maxRank ? String(maxRank) : ANY_PLACING}
+          onChange={(key: Key | null) => setFilter('maxRank', key && key !== ANY_PLACING ? String(key) : undefined)}
+        >
+          <Select.Trigger>
+            <Select.Value />
+            <Select.Indicator />
+          </Select.Trigger>
+          <Select.Popover>
+            <ListBox>
+              <ListBox.Item id={ANY_PLACING} textValue="Any placing">
+                Any placing
+                <ListBox.ItemIndicator />
+              </ListBox.Item>
+              {PLACINGS.map(({ maxRank: rank, label }) => (
+                <ListBox.Item key={rank} id={String(rank)} textValue={label}>
+                  {label}
+                  <ListBox.ItemIndicator />
+                </ListBox.Item>
+              ))}
+            </ListBox>
+          </Select.Popover>
+        </Select>
+
         {(Object.keys(FILTER_LABELS) as FilterKey[])
           .filter((key) => searchParams.get(key))
           .map((key) => (
@@ -167,7 +229,9 @@ export function ListsPage() {
                     <SortableColumn id="rank">Placing</SortableColumn>
                     <SortableColumn id="army">Army</SortableColumn>
                     <SortableColumn id="caster">Caster</SortableColumn>
+                    <SortableColumn id="points">Points</SortableColumn>
                     <Table.Column>Played</Table.Column>
+                    <SortableColumn id="price">Price</SortableColumn>
                   </Table.Header>
                   <Table.Body>
                     {data.items.map((list) => (
@@ -175,7 +239,7 @@ export function ListsPage() {
                         <Table.Cell className="whitespace-nowrap">{list.eventDate}</Table.Cell>
                         <Table.Cell>
                           <EventLink id={list.eventId}>{list.eventName}</EventLink>{' '}
-                          <span className="text-muted text-xs">({list.eventPlayers} players)</span>
+                          <span className="text-muted text-xs whitespace-nowrap">({list.eventPlayers} players)</span>
                         </Table.Cell>
                         <Table.Cell>
                           <PlayerLink id={list.playerId}>{list.playerName}</PlayerLink>
@@ -193,8 +257,14 @@ export function ListsPage() {
                           <ArmyLink army={list.army} faction={list.faction} />
                         </Table.Cell>
                         <Table.Cell className="font-semibold">{list.caster ?? '–'}</Table.Cell>
+                        <Table.Cell className="whitespace-nowrap tabular-nums">
+                          {formatPoints(list.totalPoints, list.pointLevel)}
+                        </Table.Cell>
                         <Table.Cell className="whitespace-nowrap">
                           {list.games > 0 ? `${list.wins} of ${list.games} won` : '–'}
+                        </Table.Cell>
+                        <Table.Cell className="whitespace-nowrap tabular-nums">
+                          {formatPrice(list.price, list.currency)}
                         </Table.Cell>
                       </Table.Row>
                     ))}

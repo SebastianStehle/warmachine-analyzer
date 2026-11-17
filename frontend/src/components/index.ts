@@ -1,6 +1,7 @@
 export * from './DateRangeFilter';
 export * from './Layout';
 export * from './Links';
+export * from './ListProducts';
 export * from './ModelInfo';
 export * from './MultiSelect';
 export * from './PageHeader';

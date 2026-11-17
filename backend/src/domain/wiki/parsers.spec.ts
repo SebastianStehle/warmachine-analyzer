@@ -1,7 +1,15 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { describe, expect, it } from 'vitest';
-import { isArmyIndexTitle, parseArmyIndex, toModelType } from './parsers';
+import {
+  isArmyIndexTitle,
+  parseArmyIndex,
+  parseAttachments,
+  parseCompanions,
+  parseImageUrls,
+  parsePageImages,
+  toModelType,
+} from './parsers';
 
 const parseFixture = (name: string, title: string) =>
   parseArmyIndex(
@@ -73,5 +81,63 @@ describe('index helpers', () => {
     expect(isArmyIndexTitle('Template:Circle Orboros (Legacy) Footer')).toBe(false);
     expect(isArmyIndexTitle('Template:Trollbloods Unlimited Footer')).toBe(false);
     expect(isArmyIndexTitle('Template:Army Status Table')).toBe(false);
+  });
+});
+
+describe('parseAttachments', () => {
+  const sections = (name: string) => readFileSync(join(__dirname, '../../../test/fixtures/wiki', `${name}.json`), 'utf8');
+
+  it('should read command attachments from the sections of a unit page', () => {
+    expect(parseAttachments(sections('pyg-shockers-sections'), 'Pyg Shockers')).toEqual(['Pyg Coxswain']);
+  });
+
+  it('should prefix single word attachments with the unit, as lists do', () => {
+    expect(parseAttachments(sections('marauder-crew-sections'), 'Marauder Crew')).toEqual([
+      'Marauder Crew Bosun',
+      'Marauder Crew Quartermaster',
+      'Marauder Crew Tapper',
+    ]);
+  });
+});
+
+describe('parseCompanions', () => {
+  const wikitext = (name: string) => readFileSync(join(__dirname, '../../../test/fixtures/wiki', `${name}.json`), 'utf8');
+
+  it('should read the companion of a solo with its type', () => {
+    expect(parseCompanions(wikitext('exulon-nostilla-wikitext'))).toEqual([{ name: 'Aberration', type: 'warjack' }]);
+  });
+
+  it('should read several companions', () => {
+    expect(parseCompanions(wikitext('lanyssa-ryssyl-wikitext'))).toEqual([
+      { name: 'Benkei', type: null },
+      { name: 'Sasha', type: null },
+    ]);
+  });
+});
+
+describe('images', () => {
+  const fixture = (name: string) => readFileSync(join(__dirname, '../../../test/fixtures/wiki', `${name}.json`), 'utf8');
+
+  it('should take the first image of a page, also when the page is a redirect', () => {
+    const images = parsePageImages(fixture('page-contents'), [
+      'Hellyth, Scyir of Nightfall',
+      'Dr. Arkadius',
+      'Exulon Nostilla & Aberration',
+    ]);
+
+    expect(Object.fromEntries(images)).toEqual({
+      'Hellyth, Scyir of Nightfall': 'Hellyth1.jpg',
+      'Dr. Arkadius': 'Arkadius 1.webp',
+      'Exulon Nostilla & Aberration': 'Exulon Nostilla and Aberration.webp',
+    });
+  });
+
+  it('should prefer the thumbnail of an image', () => {
+    const urls = parseImageUrls(fixture('image-urls'), ['Hellyth1.jpg', 'Arkadius 1.webp', 'Missing.png']);
+
+    expect(Object.fromEntries(urls)).toEqual({
+      'Hellyth1.jpg': 'https://static.wikitide.net/warmachineacademywiki/thumb/2/2e/Hellyth1.jpg/400px-Hellyth1.jpg',
+      'Arkadius 1.webp': 'https://static.wikitide.net/warmachineacademywiki/thumb/e/e2/Arkadius_1.webp/400px-Arkadius_1.webp.png',
+    });
   });
 });

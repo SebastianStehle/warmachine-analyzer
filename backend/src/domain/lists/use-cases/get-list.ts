@@ -8,11 +8,14 @@ import {
   GameEntity,
   GamePlayerEntity,
   ListEntryEntity,
+  ListProductEntity,
   ModelEntity,
   PlayerEntity,
+  ShopProductModelEntity,
 } from 'src/domain/database';
+import { NOT_SOLD_MODELS } from 'src/domain/shop';
 import { ListDetails } from '../interfaces';
-import { createListQuery, ListRow, loadListRecords, toListSummary, toNullableNumber } from './get-lists';
+import { createListQuery, ListRow, loadCurrency, loadListRecords, toListSummary, toNullableNumber } from './get-lists';
 
 export class GetListQuery extends Query<GetListResult> {
   constructor(public readonly listId: number) {
@@ -73,11 +76,18 @@ export class GetListHandler implements IQueryHandler<GetListQuery, GetListResult
       .getRawMany();
 
     const records = await loadListRecords(this.dataSource, [listId]);
+    const currency = await loadCurrency(this.dataSource);
+
+    const products = await this.dataSource.getRepository(ListProductEntity).find({
+      where: { listId },
+      relations: { product: true },
+      order: { product: { price: 'DESC' } },
+    });
 
     return new GetListResult({
-      ...toListSummary(row, records),
+      ...toListSummary(row, records, currency),
+      casterImageUrl: (list.casterId && models.get(list.casterId)?.imageUrl) || null,
       format: list.format ?? null,
-      pointLevel: list.pointLevel ?? null,
       rawText: list.rawText,
       commandCards: list.commandCards,
       warnings: list.warnings,
@@ -94,6 +104,15 @@ export class GetListHandler implements IQueryHandler<GetListQuery, GetListResult
           wikiPage: model?.wikiPage ?? null,
         };
       }),
+      products: products.map(({ product, quantity }) => ({
+        title: product.title,
+        url: product.url,
+        imageUrl: product.imageUrl,
+        price: product.price,
+        quantity,
+        available: product.available,
+      })),
+      unpricedModels: currency ? await this.loadUnpricedModels(entries, models) : [],
       playedGames: games.map((game) => ({
         round: Number(game.round),
         opponentId: toNullableNumber(game.opponentId),
@@ -106,5 +125,28 @@ export class GetListHandler implements IQueryHandler<GetListQuery, GetListResult
         armyPoints: toNullableNumber(game.armyPoints),
       })),
     });
+  }
+
+  private async loadUnpricedModels(entries: ListEntryEntity[], models: Map<number, ModelEntity>) {
+    const unmatched = entries.filter(({ kind, modelId }) => kind !== 'module' && !modelId).map(({ name }) => name);
+
+    const modelIds = [
+      ...new Set(
+        entries
+          .filter(({ kind, modelId }) => kind !== 'module' && modelId && !NOT_SOLD_MODELS.includes(models.get(modelId)!.name))
+          .map(({ modelId }) => modelId!),
+      ),
+    ];
+    if (modelIds.length === 0) {
+      return unmatched;
+    }
+
+    const sold = await this.dataSource.getRepository(ShopProductModelEntity).find({
+      where: { modelId: In(modelIds) },
+      select: { modelId: true },
+    });
+    const soldIds = new Set(sold.map(({ modelId }) => modelId));
+
+    return [...modelIds.filter((id) => !soldIds.has(id)).map((id) => models.get(id)!.name), ...unmatched];
   }
 }

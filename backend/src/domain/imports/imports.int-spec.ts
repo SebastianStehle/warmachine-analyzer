@@ -6,12 +6,13 @@ import { DataSource } from 'typeorm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { readCatalog } from 'src/domain/catalog';
 import { ArmyEntity, ArmyListEntity } from 'src/domain/database';
-import { GetCastersQuery, GetListQuery, GetListsQuery, ListsModule } from 'src/domain/lists';
+import { GetCastersQuery, GetListQuery, GetListsQuery, GetPointLevelsQuery, ListsModule } from 'src/domain/lists';
 import { LongshanksClient } from 'src/domain/longshanks';
+import { ShopClient } from 'src/domain/shop';
 import { GetFactionDetailsQuery, GetFactionStatsQuery, StatisticsModule } from 'src/domain/statistics';
 import { WikiClient } from 'src/domain/wiki';
 import { CatalogSeeder } from './catalog-seeder';
-import { ImportEvent, ImportsModule, UpdateCatalog } from './index';
+import { ImportEvent, ImportShop, ImportsModule, UpdateCatalog } from './index';
 
 const EVENT_ID = 38573;
 
@@ -31,6 +32,42 @@ const WIKI_INDEXES: Record<string, string> = {
   'Template:Dusk House Kallyss Footer': fixture('wiki/dusk-house-kallyss-footer.html'),
   'Template:Southern Kriels Kithguard Footer': fixture('wiki/southern-kriels-kithguard-footer.html'),
 };
+
+// A small product feed in the format of the shop, the parser itself is tested with real products.
+const SHOP_PAGE = JSON.stringify({
+  products: [
+    {
+      id: 1,
+      title: 'Warmachine: Phantasm',
+      handle: 'warmachine-dusk-house-kallyss-phantasm',
+      product_type: 'Miniatures',
+      tags: ['warmachine-dusk', 'warmachine-house-kallyss'],
+      body_html: '<p>Colossal by name and by nature.</p>',
+      variants: [{ price: '139.99', available: true }],
+      images: [],
+    },
+    {
+      id: 2,
+      title: 'Warmachine: Dreadguard Archers',
+      handle: 'warmachine-dreadguard-archers',
+      product_type: 'Miniatures',
+      tags: ['warmachine-dusk', 'warmachine-house-kallyss'],
+      body_html: '<p>The Dreadguard Archers are also part of the Dusk House Kallyss Auxiliary Expansion</p>',
+      variants: [{ price: '30.99', available: true }],
+      images: [],
+    },
+    {
+      id: 3,
+      title: 'Warmachine: Phantasm Paint Set',
+      handle: 'phantasm-paint-set',
+      product_type: 'Paint',
+      tags: [],
+      body_html: '',
+      variants: [{ price: '20.00', available: true }],
+      images: [],
+    },
+  ],
+});
 
 describe('Imports', () => {
   let context: IntegrationTestContext;
@@ -57,10 +94,22 @@ describe('Imports', () => {
         Promise.resolve(JSON.stringify({ query: { allpages: Object.keys(WIKI_INDEXES).map((title) => ({ title })) } })),
       getRenderedPage: (title: string) =>
         Promise.resolve(JSON.stringify({ parse: { title, text: { '*': WIKI_INDEXES[title] } } })),
+      getSections: (title: string) => Promise.resolve(JSON.stringify({ parse: { title, tocdata: { sections: [] } } })),
+      getPagesUsingTemplate: () => Promise.resolve(JSON.stringify({ query: { embeddedin: [] } })),
+      getPageContents: () => Promise.resolve(JSON.stringify({ query: { pages: [] } })),
+      getImageUrls: () => Promise.resolve(JSON.stringify({ query: { pages: [] } })),
+    };
+
+    const shopClient = {
+      baseUrl: 'https://shop.test',
+      currency: 'EUR',
+      getProducts: (page: number) => Promise.resolve(page === 1 ? SHOP_PAGE : JSON.stringify({ products: [] })),
     };
 
     context = await createIntegrationTest({ imports: [ImportsModule, ListsModule, StatisticsModule] }, (builder) =>
       builder
+        .overrideProvider(ShopClient)
+        .useValue(shopClient)
         .overrideProvider(LongshanksClient)
         .useValue(client)
         .overrideProvider(WikiClient)
@@ -77,6 +126,10 @@ describe('Imports', () => {
     listIdsAfterFirstImport = await loadListIds();
 
     // Importing twice must replace the data instead of duplicating it.
+    await context.commandBus.execute(new ImportEvent(EVENT_ID));
+
+    await context.commandBus.execute(new ImportShop());
+    // Importing the event after the shop must calculate the prices again.
     await context.commandBus.execute(new ImportEvent(EVENT_ID));
   });
 
@@ -102,6 +155,34 @@ describe('Imports', () => {
     expect(lists.map(({ armyId }) => armyId)).toEqual(lists.map(() => id));
   });
 
+  it('should only price a list when the shop sells all of its models', async () => {
+    const { items } = await context.queryBus.execute(new GetListsQuery({ unit: 'Phantasm', page: 0, pageSize: 10 }));
+    const { list } = await context.queryBus.execute(new GetListQuery(items[0].id));
+
+    const archers = list.entries.filter(({ modelName }) => modelName === 'Dreadguard Archers').length;
+
+    // The products for the models the shop sells are still shown.
+    expect(list.products.map(({ title, url, price, quantity }) => ({ title, url, price, quantity }))).toEqual([
+      {
+        title: 'Warmachine: Phantasm',
+        url: 'https://shop.test/products/warmachine-dusk-house-kallyss-phantasm',
+        price: 13999,
+        quantity: 1,
+      },
+      {
+        title: 'Warmachine: Dreadguard Archers',
+        url: 'https://shop.test/products/warmachine-dreadguard-archers',
+        price: 3099,
+        quantity: archers,
+      },
+    ]);
+    expect(list.price).toBeNull();
+    expect(list.currency).toEqual('EUR');
+    // Models that are not in the shop and entries that are not in the catalog.
+    expect(list.unpricedModels).toEqual(expect.arrayContaining(['Hellyth, Scyir of Nightfall', 'Benkei']));
+    expect(items[0].price).toBeNull();
+  });
+
   it('should calculate faction stats when an event is imported', async () => {
     const { factions } = await context.queryBus.execute(new GetFactionStatsQuery({}));
 
@@ -124,6 +205,33 @@ describe('Imports', () => {
       ['Hysene, the Executioner', 0],
       ['Nymara, The Shadowblade', 0],
     ]);
+  });
+
+  it('should filter lists by the point levels that were played', async () => {
+    const { pointLevels } = await context.queryBus.execute(new GetPointLevelsQuery({}));
+    const { items: all } = await context.queryBus.execute(new GetListsQuery({ page: 0, pageSize: 10 }));
+
+    expect(pointLevels).toEqual([{ pointLevel: all[0].pointLevel, lists: all.length }]);
+
+    const { total: matching } = await context.queryBus.execute(
+      new GetListsQuery({ pointLevel: [all[0].pointLevel!], page: 0, pageSize: 10 }),
+    );
+    const { total: other } = await context.queryBus.execute(
+      new GetListsQuery({ pointLevel: [all[0].pointLevel! + 1], page: 0, pageSize: 10 }),
+    );
+
+    expect(matching).toEqual(all.length);
+    expect(other).toEqual(0);
+  });
+
+  it('should filter lists by the placing of the player', async () => {
+    const { total: all } = await context.queryBus.execute(new GetListsQuery({ page: 0, pageSize: 10 }));
+    const { total: topTwo } = await context.queryBus.execute(new GetListsQuery({ maxRank: 2, page: 0, pageSize: 10 }));
+    const { total: winners } = await context.queryBus.execute(new GetListsQuery({ maxRank: 1, page: 0, pageSize: 10 }));
+
+    // The only imported lists are from the player who placed second.
+    expect(topTwo).toEqual(all);
+    expect(winners).toEqual(0);
   });
 
   // The wiki fixtures have no index for Thornfall Alliance.

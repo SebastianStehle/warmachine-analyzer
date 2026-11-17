@@ -1,15 +1,24 @@
 import { ApiProperty, IntersectionType } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
-import { IsEnum, IsInt, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsInt, IsOptional, IsString, Min } from 'class-validator';
 import { GameResult, ListEntryKind, ModelType } from 'src/domain/database';
-import { CasterOption, ListDetails, ListEntry, ListGame, ListSortField, ListSummary } from 'src/domain/lists';
+import {
+  CasterOption,
+  ListDetails,
+  ListEntry,
+  ListGame,
+  ListProduct,
+  ListSortField,
+  ListSummary,
+  PointLevelOption,
+} from 'src/domain/lists';
 import { DateRangeQueryDto, PageQueryDto, SearchQueryDto, toArray, toEnumObject } from '../shared';
 import { MODEL_TYPES } from '../statistics/dtos';
 
 const LIST_ENTRY_KINDS: ListEntryKind[] = ['leader', 'model', 'module'];
 const GAME_RESULTS: GameResult[] = ['win', 'loss', 'draw'];
 
-const LIST_SORT_FIELDS = toEnumObject<ListSortField>(['date', 'event', 'player', 'rank', 'army', 'caster']);
+const LIST_SORT_FIELDS = toEnumObject<ListSortField>(['date', 'event', 'player', 'rank', 'army', 'caster', 'points', 'price']);
 
 export class ListsQueryDto extends IntersectionType(DateRangeQueryDto, PageQueryDto, SearchQueryDto) {
   @ApiProperty({
@@ -63,6 +72,27 @@ export class ListsQueryDto extends IntersectionType(DateRangeQueryDto, PageQuery
   caster?: string[];
 
   @ApiProperty({
+    description: 'Only lists for these point levels.',
+    required: false,
+    type: [Number],
+  })
+  @IsOptional()
+  @Transform(({ value }: { value: unknown }) => (Array.isArray(value) ? value : [value]).map(Number))
+  @IsInt({ each: true })
+  pointLevel?: number[];
+
+  @ApiProperty({
+    description: 'Only lists of players who placed at this rank or better.',
+    required: false,
+    type: Number,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  maxRank?: number;
+
+  @ApiProperty({
     description: 'Only lists containing this model or unit.',
     required: false,
   })
@@ -87,8 +117,22 @@ export class ListSummaryDto {
   @ApiProperty({ description: 'The caster.', required: true, nullable: true, type: String })
   caster: string | null;
 
+  @ApiProperty({ description: 'The point level of the game.', required: true, nullable: true, type: Number })
+  pointLevel: number | null;
+
   @ApiProperty({ description: 'The total points.', required: true, nullable: true, type: Number })
   totalPoints: number | null;
+
+  @ApiProperty({
+    description: 'The price of the cheapest products that contain the models of the list, in cents.',
+    required: true,
+    nullable: true,
+    type: Number,
+  })
+  price: number | null;
+
+  @ApiProperty({ description: 'The currency of the price.', required: true, nullable: true, type: String })
+  currency: string | null;
 
   @ApiProperty({ description: 'The Longshanks ID of the event.', required: true })
   eventId: number;
@@ -215,12 +259,38 @@ export class ListGameDto {
   }
 }
 
+export class ListProductDto {
+  @ApiProperty({ description: 'The name of the product.', required: true })
+  title: string;
+
+  @ApiProperty({ description: 'The link to the product in the shop.', required: true })
+  url: string;
+
+  @ApiProperty({ description: 'The image of the product.', required: true, nullable: true, type: String })
+  imageUrl: string | null;
+
+  @ApiProperty({ description: 'The price of one product in cents.', required: true })
+  price: number;
+
+  @ApiProperty({ description: 'How often the product is needed.', required: true })
+  quantity: number;
+
+  @ApiProperty({ description: 'Whether the product can be ordered.', required: true })
+  available: boolean;
+
+  static fromDomain(source: ListProduct) {
+    const result = new ListProductDto();
+    Object.assign(result, source);
+    return result;
+  }
+}
+
 export class ListDetailsDto extends ListSummaryDto {
+  @ApiProperty({ description: 'The picture of the caster from the wiki.', required: true, nullable: true, type: String })
+  casterImageUrl: string | null;
+
   @ApiProperty({ description: 'The game format.', required: true, nullable: true, type: String })
   format: string | null;
-
-  @ApiProperty({ description: 'The point level.', required: true, nullable: true, type: Number })
-  pointLevel: number | null;
 
   @ApiProperty({ description: 'The list as submitted.', required: true })
   rawText: string;
@@ -237,13 +307,24 @@ export class ListDetailsDto extends ListSummaryDto {
   @ApiProperty({ description: 'The games played with this list.', required: true, type: [ListGameDto] })
   playedGames: ListGameDto[];
 
+  @ApiProperty({
+    description: 'The cheapest products that contain the models of the list.',
+    required: true,
+    type: [ListProductDto],
+  })
+  products: ListProductDto[];
+
+  @ApiProperty({ description: 'Models of the list that are not sold in the shop.', required: true, type: [String] })
+  unpricedModels: string[];
+
   static fromDomain(source: ListDetails) {
-    const { entries, playedGames, ...rest } = source;
+    const { entries, playedGames, products, ...rest } = source;
 
     const result = new ListDetailsDto();
     Object.assign(result, rest);
     result.entries = entries.map(ListEntryDto.fromDomain);
     result.playedGames = playedGames.map(ListGameDto.fromDomain);
+    result.products = products.map(ListProductDto.fromDomain);
     return result;
   }
 }
@@ -284,6 +365,31 @@ export class CasterOptionsDto {
   static fromDomain(items: CasterOption[]) {
     const result = new CasterOptionsDto();
     result.items = items.map(CasterOptionDto.fromDomain);
+    return result;
+  }
+}
+
+export class PointLevelOptionDto {
+  @ApiProperty({ description: 'The point level of the game.', required: true })
+  pointLevel: number;
+
+  @ApiProperty({ description: 'The number of lists for this point level.', required: true })
+  lists: number;
+
+  static fromDomain({ pointLevel, lists }: PointLevelOption) {
+    const result = new PointLevelOptionDto();
+    Object.assign(result, { pointLevel, lists });
+    return result;
+  }
+}
+
+export class PointLevelOptionsDto {
+  @ApiProperty({ description: 'The point levels.', required: true, type: [PointLevelOptionDto] })
+  items: PointLevelOptionDto[];
+
+  static fromDomain(items: PointLevelOption[]) {
+    const result = new PointLevelOptionsDto();
+    result.items = items.map(PointLevelOptionDto.fromDomain);
     return result;
   }
 }

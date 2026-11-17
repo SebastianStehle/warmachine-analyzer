@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import { useDateRangeSync } from 'src/lib/date-range';
 import { DateRangeFilter } from './DateRangeFilter';
 
 const NAVIGATION = [
@@ -20,6 +21,8 @@ function Cog() {
 export function Layout() {
   const { pathname } = useLocation();
   const contentRef = useRef<HTMLDivElement>(null);
+
+  useDateRangeSync();
 
   // Only the content scrolls, so the browser does not reset the position when navigating to another page.
   useEffect(() => {

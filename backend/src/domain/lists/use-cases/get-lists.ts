@@ -12,6 +12,7 @@ import {
   ModelEntity,
   ParticipantEntity,
   PlayerEntity,
+  ShopProductEntity,
 } from 'src/domain/database';
 import { applyDateRange } from 'src/domain/statistics/utils';
 import { ListFilter, ListSortField, ListSummary } from '../interfaces';
@@ -23,6 +24,8 @@ const SORT_COLUMNS: Record<ListSortField, string> = {
   rank: 'p.rank',
   army: 'a.name',
   caster: 'c.name',
+  points: 'l.pointLevel',
+  price: 'l.price',
 };
 
 export class GetListsQuery extends Query<GetListsResult> {
@@ -44,7 +47,9 @@ export interface ListRow {
   faction: string | null;
   army: string;
   caster: string | null;
+  pointLevel: number | null;
   totalPoints: number | null;
+  price: number | null;
   eventId: number;
   eventName: string;
   eventDate: string;
@@ -71,7 +76,9 @@ export function createListQuery(dataSource: DataSource) {
     .addSelect('f.name', 'faction')
     .addSelect('a.name', 'army')
     .addSelect('c.name', 'caster')
+    .addSelect('l.pointLevel', 'pointLevel')
     .addSelect('l.totalPoints', 'totalPoints')
+    .addSelect('l.price', 'price')
     .addSelect('e.id', 'eventId')
     .addSelect('e.name', 'eventName')
     .addSelect('e.date', 'eventDate')
@@ -109,7 +116,17 @@ export async function loadListRecords(dataSource: DataSource, listIds: number[])
 
 export const toNullableNumber = (value: unknown) => (value === null || value === undefined ? null : Number(value));
 
-export function toListSummary(row: ListRow, records: Map<number, { games: number; wins: number }>): ListSummary {
+// All products are imported with the same currency.
+export async function loadCurrency(dataSource: DataSource) {
+  const [product] = await dataSource.getRepository(ShopProductEntity).find({ select: { currency: true }, take: 1 });
+  return product?.currency ?? null;
+}
+
+export function toListSummary(
+  row: ListRow,
+  records: Map<number, { games: number; wins: number }>,
+  currency: string | null,
+): ListSummary {
   const id = Number(row.id);
 
   return {
@@ -118,7 +135,10 @@ export function toListSummary(row: ListRow, records: Map<number, { games: number
     faction: row.faction,
     army: row.army,
     caster: row.caster,
+    pointLevel: toNullableNumber(row.pointLevel),
     totalPoints: toNullableNumber(row.totalPoints),
+    price: toNullableNumber(row.price),
+    currency,
     eventId: Number(row.eventId),
     eventName: row.eventName,
     eventDate: row.eventDate,
@@ -141,7 +161,7 @@ export class GetListsHandler implements IQueryHandler<GetListsQuery, GetListsRes
   ) {}
 
   async execute({ filter }: GetListsQuery): Promise<GetListsResult> {
-    const { army, caster, unit, playerId, eventId, search, sort, order, page, pageSize } = filter;
+    const { army, caster, pointLevel, maxRank, unit, playerId, eventId, search, sort, order, page, pageSize } = filter;
 
     const query = applyDateRange(createListQuery(this.dataSource), 'e', filter);
 
@@ -151,6 +171,14 @@ export class GetListsHandler implements IQueryHandler<GetListsQuery, GetListsRes
 
     if (caster && caster.length > 0) {
       query.andWhere('c.name IN (:...caster)', { caster });
+    }
+
+    if (pointLevel && pointLevel.length > 0) {
+      query.andWhere('l.pointLevel IN (:...pointLevel)', { pointLevel });
+    }
+
+    if (maxRank) {
+      query.andWhere('p.rank <= :maxRank', { maxRank });
     }
 
     if (playerId) {
@@ -189,13 +217,14 @@ export class GetListsHandler implements IQueryHandler<GetListsQuery, GetListsRes
       .limit(pageSize)
       .getRawMany<ListRow>();
 
+    const currency = await loadCurrency(this.dataSource);
     const records = await loadListRecords(
       this.dataSource,
       rows.map(({ id }) => Number(id)),
     );
 
     return new GetListsResult(
-      rows.map((row) => toListSummary(row, records)),
+      rows.map((row) => toListSummary(row, records, currency)),
       total,
     );
   }

@@ -2,9 +2,21 @@ openapi: 3.0.0
 paths:
   /api/events:
     get:
-      description: Gets imported events, newest first.
+      description: Gets imported events.
       operationId: getEvents
       parameters:
+        - name: from
+          required: false
+          in: query
+          description: Only include events on or after this date (YYYY-MM-DD).
+          schema:
+            type: string
+        - name: to
+          required: false
+          in: query
+          description: Only include events on or before this date (YYYY-MM-DD).
+          schema:
+            type: string
         - name: page
           required: false
           in: query
@@ -17,6 +29,24 @@ paths:
           description: The number of items per page.
           schema:
             type: number
+        - name: search
+          required: false
+          in: query
+          description: Case insensitive text search.
+          schema:
+            type: string
+        - name: order
+          required: false
+          in: query
+          description: The sort direction.
+          schema:
+            $ref: "#/components/schemas/SortOrder"
+        - name: sort
+          required: false
+          in: query
+          description: The field to sort by.
+          schema:
+            $ref: "#/components/schemas/EventSortField"
       responses:
         "200":
           description: ""
@@ -24,6 +54,27 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/EventsDto"
+      summary: ""
+      tags:
+        - events
+  /api/events/{id}:
+    get:
+      description: Gets an event with standings.
+      operationId: getEvent
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: The Longshanks ID of the event.
+          schema:
+            type: number
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventDetailsDto"
       summary: ""
       tags:
         - events
@@ -54,6 +105,36 @@ paths:
           required: false
           in: query
           description: The number of items per page.
+          schema:
+            type: number
+        - name: search
+          required: false
+          in: query
+          description: Case insensitive text search.
+          schema:
+            type: string
+        - name: order
+          required: false
+          in: query
+          description: The sort direction.
+          schema:
+            $ref: "#/components/schemas/SortOrder"
+        - name: sort
+          required: false
+          in: query
+          description: The field to sort by.
+          schema:
+            $ref: "#/components/schemas/ListSortField"
+        - name: playerId
+          required: false
+          in: query
+          description: Only lists of this player.
+          schema:
+            type: number
+        - name: eventId
+          required: false
+          in: query
+          description: Only lists of this event.
           schema:
             type: number
         - name: army
@@ -105,6 +186,84 @@ paths:
       summary: ""
       tags:
         - lists
+  /api/players:
+    get:
+      description: Gets players with their results.
+      operationId: getPlayers
+      parameters:
+        - name: from
+          required: false
+          in: query
+          description: Only include events on or after this date (YYYY-MM-DD).
+          schema:
+            type: string
+        - name: to
+          required: false
+          in: query
+          description: Only include events on or before this date (YYYY-MM-DD).
+          schema:
+            type: string
+        - name: page
+          required: false
+          in: query
+          description: The zero based page.
+          schema:
+            type: number
+        - name: pageSize
+          required: false
+          in: query
+          description: The number of items per page.
+          schema:
+            type: number
+        - name: search
+          required: false
+          in: query
+          description: Case insensitive text search.
+          schema:
+            type: string
+        - name: order
+          required: false
+          in: query
+          description: The sort direction.
+          schema:
+            $ref: "#/components/schemas/SortOrder"
+        - name: sort
+          required: false
+          in: query
+          description: The field to sort by.
+          schema:
+            $ref: "#/components/schemas/PlayerSortField"
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayersDto"
+      summary: ""
+      tags:
+        - players
+  /api/players/{id}:
+    get:
+      description: Gets a player with all events.
+      operationId: getPlayer
+      parameters:
+        - name: id
+          required: true
+          in: path
+          description: The Longshanks ID of the player.
+          schema:
+            type: number
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlayerDetailsDto"
+      summary: ""
+      tags:
+        - players
   /api/stats/factions:
     get:
       description: Gets stats per army.
@@ -174,6 +333,18 @@ tags: []
 servers: []
 components:
   schemas:
+    SortOrder:
+      type: string
+      enum:
+        - asc
+        - desc
+    EventSortField:
+      type: string
+      enum:
+        - date
+        - name
+        - players
+        - rounds
     EventDto:
       type: object
       properties:
@@ -226,6 +397,131 @@ components:
       required:
         - items
         - total
+    StandingListDto:
+      type: object
+      properties:
+        id:
+          type: number
+          description: The ID of the list.
+        caster:
+          type: string
+          description: The caster.
+          nullable: true
+      required:
+        - id
+        - caster
+    EventStandingDto:
+      type: object
+      properties:
+        rank:
+          type: number
+          description: The final rank.
+        playerId:
+          type: number
+          description: The Longshanks ID of the player.
+        playerName:
+          type: string
+          description: The name of the player.
+        army:
+          type: string
+          description: The army.
+          nullable: true
+        faction:
+          type: string
+          description: The parent faction.
+          nullable: true
+        tournamentPoints:
+          type: number
+          description: The tournament points.
+        wins:
+          type: number
+          description: The wins.
+        losses:
+          type: number
+          description: The losses.
+        strengthOfSchedule:
+          type: number
+          description: The strength of schedule.
+          nullable: true
+        controlPoints:
+          type: number
+          description: The control points.
+          nullable: true
+        armyPoints:
+          type: number
+          description: The army points.
+          nullable: true
+        lists:
+          description: The submitted lists.
+          type: array
+          items:
+            $ref: "#/components/schemas/StandingListDto"
+      required:
+        - rank
+        - playerId
+        - playerName
+        - army
+        - faction
+        - tournamentPoints
+        - wins
+        - losses
+        - strengthOfSchedule
+        - controlPoints
+        - armyPoints
+        - lists
+    EventDetailsDto:
+      type: object
+      properties:
+        id:
+          type: number
+          description: The Longshanks ID of the event.
+        name:
+          type: string
+          description: The name.
+        date:
+          type: string
+          description: The date (YYYY-MM-DD).
+        location:
+          type: string
+          description: The location.
+          nullable: true
+        type:
+          type: string
+          description: The event type, e.g. Rated tournament.
+          nullable: true
+        playerCount:
+          type: number
+          description: The number of players.
+        rounds:
+          type: number
+          description: The number of rounds.
+        lists:
+          type: number
+          description: The number of imported lists.
+        standings:
+          description: The final standings.
+          type: array
+          items:
+            $ref: "#/components/schemas/EventStandingDto"
+      required:
+        - id
+        - name
+        - date
+        - location
+        - type
+        - playerCount
+        - rounds
+        - lists
+        - standings
+    ListSortField:
+      type: string
+      enum:
+        - date
+        - event
+        - player
+        - rank
+        - army
+        - caster
     ListSummaryDto:
       type: object
       properties:
@@ -361,6 +657,10 @@ components:
         round:
           type: number
           description: The round.
+        opponentId:
+          type: number
+          description: The Longshanks ID of the opponent.
+          nullable: true
         scenario:
           type: string
           description: The scenario.
@@ -391,6 +691,7 @@ components:
           nullable: true
       required:
         - round
+        - opponentId
         - scenario
         - opponentName
         - opponentArmy
@@ -515,6 +816,203 @@ components:
         - warnings
         - entries
         - playedGames
+    PlayerSortField:
+      type: string
+      enum:
+        - name
+        - events
+        - wins
+        - winRate
+        - lastEvent
+    PlayerSummaryDto:
+      type: object
+      properties:
+        id:
+          type: number
+          description: The Longshanks ID of the player.
+        name:
+          type: string
+          description: The name.
+        events:
+          type: number
+          description: The number of events.
+        wins:
+          type: number
+          description: The wins over all events.
+        losses:
+          type: number
+          description: The losses over all events.
+        winRate:
+          type: number
+          description: Wins divided by games. Null without games.
+          nullable: true
+        lastEventDate:
+          type: string
+          description: The date of the last event.
+          nullable: true
+        mainArmy:
+          type: string
+          description: The army played most often.
+          nullable: true
+      required:
+        - id
+        - name
+        - events
+        - wins
+        - losses
+        - winRate
+        - lastEventDate
+        - mainArmy
+    PlayersDto:
+      type: object
+      properties:
+        items:
+          description: The players.
+          type: array
+          items:
+            $ref: "#/components/schemas/PlayerSummaryDto"
+        total:
+          type: number
+          description: The total number of players.
+      required:
+        - items
+        - total
+    ArmyUsageDto:
+      type: object
+      properties:
+        army:
+          type: string
+          description: The army.
+        faction:
+          type: string
+          description: The parent faction.
+          nullable: true
+        events:
+          type: number
+          description: The number of events with this army.
+        wins:
+          type: number
+          description: The wins with this army.
+        losses:
+          type: number
+          description: The losses with this army.
+        winRate:
+          type: number
+          description: Wins divided by games. Null without games.
+          nullable: true
+      required:
+        - army
+        - faction
+        - events
+        - wins
+        - losses
+        - winRate
+    PlayerListDto:
+      type: object
+      properties:
+        id:
+          type: number
+          description: The ID of the list.
+        caster:
+          type: string
+          description: The caster.
+          nullable: true
+      required:
+        - id
+        - caster
+    ParticipationDto:
+      type: object
+      properties:
+        eventId:
+          type: number
+          description: The Longshanks ID of the event.
+        eventName:
+          type: string
+          description: The name of the event.
+        eventDate:
+          type: string
+          description: The date of the event.
+        eventPlayers:
+          type: number
+          description: The number of players in the event.
+        rank:
+          type: number
+          description: The final rank.
+        army:
+          type: string
+          description: The army.
+          nullable: true
+        faction:
+          type: string
+          description: The parent faction.
+          nullable: true
+        tournamentPoints:
+          type: number
+          description: The tournament points.
+        wins:
+          type: number
+          description: The wins.
+        losses:
+          type: number
+          description: The losses.
+        lists:
+          description: The submitted lists.
+          type: array
+          items:
+            $ref: "#/components/schemas/PlayerListDto"
+      required:
+        - eventId
+        - eventName
+        - eventDate
+        - eventPlayers
+        - rank
+        - army
+        - faction
+        - tournamentPoints
+        - wins
+        - losses
+        - lists
+    PlayerDetailsDto:
+      type: object
+      properties:
+        id:
+          type: number
+          description: The Longshanks ID of the player.
+        name:
+          type: string
+          description: The name.
+        events:
+          type: number
+          description: The number of events.
+        wins:
+          type: number
+          description: The wins over all events.
+        losses:
+          type: number
+          description: The losses over all events.
+        winRate:
+          type: number
+          description: Wins divided by games. Null without games.
+          nullable: true
+        armies:
+          description: The armies played.
+          type: array
+          items:
+            $ref: "#/components/schemas/ArmyUsageDto"
+        participations:
+          description: The events played, newest first.
+          type: array
+          items:
+            $ref: "#/components/schemas/ParticipationDto"
+      required:
+        - id
+        - name
+        - events
+        - wins
+        - losses
+        - winRate
+        - armies
+        - participations
     FactionStatsDto:
       type: object
       properties:

@@ -2,8 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import classNames from 'classnames';
 import { Link, useParams } from 'react-router-dom';
 import { ListEntryKind, useClients } from 'src/api';
-import { QueryState } from 'src/components';
-import { LONGSHANKS_URL } from 'src/lib/format';
+import { ArmyLink, EventLink, PageHeader, PlayerLink, QueryState } from 'src/components';
+import { LONGSHANKS_URL } from 'src/lib/factions';
 
 const RESULT_BADGES: Record<string, string> = {
   win: 'badge-success',
@@ -21,7 +21,7 @@ export function ListPage() {
   });
 
   return (
-    <div className="flex flex-col gap-4">
+    <>
       <div className="breadcrumbs text-sm">
         <ul>
           <li>
@@ -33,72 +33,81 @@ export function ListPage() {
 
       <QueryState isLoading={isLoading} error={error}>
         {data && (
-          <div className="grid items-start gap-4 lg:grid-cols-2">
-            <div className="card bg-base-100 shadow-sm">
-              <div className="card-body">
-                <h1 className="card-title text-2xl">{data.title}</h1>
-                <p>
-                  {data.faction && `${data.faction} – `}
-                  <Link className="link" to={`/factions/${encodeURIComponent(data.army ?? '')}`}>
-                    {data.army}
-                  </Link>
-                  {data.format && ` · ${data.format}`}
-                  {data.totalPoints !== null && ` · ${data.totalPoints}/${data.pointLevel ?? '?'} pts`}
-                </p>
+          <>
+            <PageHeader
+              kicker={<ArmyLink army={data.army} faction={data.faction} />}
+              title={data.caster ?? data.title}
+              description={
+                <>
+                  “{data.title}” by <PlayerLink id={data.playerId}>{data.playerName}</PlayerLink> at{' '}
+                  <EventLink id={data.eventId}>{data.eventName}</EventLink> ({data.eventDate}) · placed {data.rank ?? '–'} of{' '}
+                  {data.eventPlayers}
+                  {data.eventWins !== null && `, ${data.eventWins}-${data.eventLosses} overall`}
+                </>
+              }
+            />
+
+            <div className="grid items-start gap-6 lg:grid-cols-2">
+              <div className="panel p-5">
+                <div className="flex items-baseline justify-between">
+                  <h2 className="text-xl font-semibold">List</h2>
+                  <span className="text-base-content/80 text-sm">
+                    {data.format}
+                    {data.totalPoints !== null && ` · ${data.totalPoints}/${data.pointLevel ?? '?'} pts`}
+                  </span>
+                </div>
 
                 {data.warnings.length > 0 && (
-                  <div role="alert" className="alert alert-warning">
+                  <div role="alert" className="alert alert-warning mt-3">
                     <span>{data.warnings.join(' ')}</span>
                   </div>
                 )}
 
-                <table className="table-sm table">
+                <table className="table-sm mt-2 table">
                   <tbody>
                     {data.entries.map(({ name, points, depth, kind }, index) => (
                       <tr key={index}>
                         <td style={{ paddingLeft: `${depth * 1.5 + 0.75}rem` }}>
                           <span
                             className={classNames({
-                              'font-bold': kind === ListEntryKind.Leader,
-                              'text-base-content/70 text-sm': kind === ListEntryKind.Module,
+                              'text-primary font-bold': kind === ListEntryKind.Leader,
+                              'text-base-content/80 text-sm': kind === ListEntryKind.Module,
                             })}
                           >
                             {name}
                           </span>
                         </td>
-                        <td className="text-right">{points ?? ''}</td>
+                        <td className="text-right tabular-nums">{points ?? ''}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
 
-                {data.commandCards.length > 0 && <p className="text-sm">Command cards: {data.commandCards.join(', ')}</p>}
+                {data.commandCards.length > 0 && <p className="mt-3 text-sm">Command cards: {data.commandCards.join(', ')}</p>}
 
-                <details className="collapse-arrow bg-base-200 collapse">
+                <details className="collapse-arrow bg-base-200 collapse mt-3">
                   <summary className="collapse-title text-sm">List as submitted</summary>
                   <pre className="collapse-content overflow-x-auto text-xs">{data.rawText}</pre>
                 </details>
               </div>
-            </div>
 
-            <div className="card bg-base-100 shadow-sm">
-              <div className="card-body">
-                <h2 className="card-title">
-                  {data.playerName} at{' '}
-                  <a className="link" href={`${LONGSHANKS_URL}/event/${data.eventId}/`} target="_blank" rel="noreferrer">
-                    {data.eventName}
+              <div className="panel p-5">
+                <div className="flex items-baseline justify-between">
+                  <h2 className="text-xl font-semibold">Games played with this list</h2>
+                  <a
+                    className="link link-hover text-sm"
+                    href={`${LONGSHANKS_URL}/event/${data.eventId}/`}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Longshanks ↗
                   </a>
-                </h2>
-                <p>
-                  {data.eventDate} · Placed {data.rank ?? '–'} of {data.eventPlayers}
-                  {data.eventWins !== null && ` · ${data.eventWins}-${data.eventLosses} overall`}
-                </p>
+                </div>
 
-                <h3 className="mt-2 font-semibold">Games played with this list</h3>
                 {data.playedGames.length === 0 ? (
-                  <p className="text-sm">No games could be linked to this list.</p>
+                  <p className="mt-2 text-sm">No games could be linked to this list.</p>
                 ) : (
-                  <table className="table-sm table">
+                  <table className="table-sm mt-2 table">
                     <thead>
                       <tr>
                         <th>Round</th>
@@ -113,9 +122,9 @@ export function ListPage() {
                         <tr key={game.round}>
                           <td>{game.round}</td>
                           <td>
-                            {game.opponentName ?? 'Bye'}
+                            <PlayerLink id={game.opponentId}>{game.opponentName ?? 'Bye'}</PlayerLink>
                             {game.opponentArmy && (
-                              <div className="text-base-content/70 text-xs">
+                              <div className="text-base-content/80 text-xs">
                                 {game.opponentArmy}
                                 {game.opponentCaster && ` – ${game.opponentCaster}`}
                               </div>
@@ -125,7 +134,7 @@ export function ListPage() {
                           <td>
                             <span className={`badge ${RESULT_BADGES[game.result]}`}>{game.result}</span>
                           </td>
-                          <td className="whitespace-nowrap">
+                          <td className="whitespace-nowrap tabular-nums">
                             {game.controlPoints ?? '–'} / {game.armyPoints ?? '–'}
                           </td>
                         </tr>
@@ -135,9 +144,9 @@ export function ListPage() {
                 )}
               </div>
             </div>
-          </div>
+          </>
         )}
       </QueryState>
-    </div>
+    </>
   );
 }

@@ -1,8 +1,9 @@
 import { Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Command, CommandBus, CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EventEntity, EventRepository } from 'src/domain/database';
-import { LongshanksClient, parseResultEventIds } from 'src/domain/longshanks';
+import { LongshanksClient, LongshanksConfig, parseResultEventIds, runWithConcurrency } from 'src/domain/longshanks';
 import { ImportEvent } from './import-event';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -16,6 +17,8 @@ export class DiscoverEvents extends Command<DiscoverEventsResult> {
     public readonly from: string,
     public readonly to: string,
     public readonly refresh = false,
+    // Overrides CRAWLER_EVENT_CONCURRENCY.
+    public readonly concurrency?: number,
   ) {
     super();
   }
@@ -38,12 +41,14 @@ export class DiscoverEventsHandler implements ICommandHandler<DiscoverEvents, Di
   constructor(
     private readonly client: LongshanksClient,
     private readonly commandBus: CommandBus,
+    private readonly configService: ConfigService,
     @InjectRepository(EventEntity)
     private readonly events: EventRepository,
   ) {}
 
   async execute(command: DiscoverEvents): Promise<DiscoverEventsResult> {
     const { from, to, refresh } = command;
+    const concurrency = command.concurrency ?? this.configService.getOrThrow<LongshanksConfig>('longshanks').eventConcurrency;
 
     const eventIds = new Set<number>();
     for (const [chunkFrom, chunkTo] of this.chunks(from, to)) {
@@ -57,15 +62,20 @@ export class DiscoverEventsHandler implements ICommandHandler<DiscoverEvents, Di
       }
     }
 
-    this.logger.log(`Found ${eventIds.size} events with lists between ${from} and ${to}.`);
+    const pending: number[] = [];
+    for (const eventId of eventIds) {
+      if (refresh || !(await this.events.existsBy({ id: eventId }))) {
+        pending.push(eventId);
+      }
+    }
+
+    this.logger.log(
+      `Found ${eventIds.size} events with lists between ${from} and ${to}, importing ${pending.length} with ${concurrency} in parallel.`,
+    );
 
     let imported = 0;
     let failed = 0;
-    for (const eventId of eventIds) {
-      if (!refresh && (await this.events.existsBy({ id: eventId }))) {
-        continue;
-      }
-
+    await runWithConcurrency(pending, concurrency, async (eventId) => {
       try {
         const { status } = await this.commandBus.execute(new ImportEvent(eventId, refresh));
         if (status === 'imported') {
@@ -75,7 +85,7 @@ export class DiscoverEventsHandler implements ICommandHandler<DiscoverEvents, Di
         failed++;
         this.logger.error(`Failed to import event ${eventId}: ${error}`);
       }
-    }
+    });
 
     return new DiscoverEventsResult(eventIds.size, imported, failed);
   }

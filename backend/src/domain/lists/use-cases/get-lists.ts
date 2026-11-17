@@ -1,6 +1,7 @@
 import { IQueryHandler, Query, QueryHandler } from '@nestjs/cqrs';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
+import { toSearchPattern, toSqlOrder } from 'src/domain/common/query';
 import {
   ArmyListEntity,
   EventEntity,
@@ -10,7 +11,16 @@ import {
   PlayerEntity,
 } from 'src/domain/database';
 import { applyDateRange } from 'src/domain/statistics/utils';
-import { ListFilter, ListSummary } from '../interfaces';
+import { ListFilter, ListSortField, ListSummary } from '../interfaces';
+
+const SORT_COLUMNS: Record<ListSortField, string> = {
+  date: 'e.date',
+  event: 'e.name',
+  player: 'pl.name',
+  rank: 'p.rank',
+  army: 'l.army',
+  caster: 'l.caster',
+};
 
 export class GetListsQuery extends Query<GetListsResult> {
   constructor(public readonly filter: ListFilter) {
@@ -91,23 +101,29 @@ export async function loadListRecords(dataSource: DataSource, listIds: number[])
   return result;
 }
 
-export function toListSummary(row: ListRow, records: Map<number, { games: number; wins: number }>): ListSummary {
-  const { id, eventId, eventPlayers, playerId, rank, eventWins, eventLosses, totalPoints } = row;
+export const toNullableNumber = (value: unknown) => (value === null || value === undefined ? null : Number(value));
 
-  const toNumber = (value: unknown) => (value === null || value === undefined ? null : Number(value));
+export function toListSummary(row: ListRow, records: Map<number, { games: number; wins: number }>): ListSummary {
+  const id = Number(row.id);
 
   return {
-    ...row,
-    id: Number(id),
-    eventId: Number(eventId),
-    eventPlayers: Number(eventPlayers),
-    playerId: Number(playerId),
-    rank: toNumber(rank),
-    eventWins: toNumber(eventWins),
-    eventLosses: toNumber(eventLosses),
-    totalPoints: toNumber(totalPoints),
-    games: records.get(Number(id))?.games ?? 0,
-    wins: records.get(Number(id))?.wins ?? 0,
+    id,
+    title: row.title,
+    faction: row.faction,
+    army: row.army,
+    caster: row.caster,
+    totalPoints: toNullableNumber(row.totalPoints),
+    eventId: Number(row.eventId),
+    eventName: row.eventName,
+    eventDate: row.eventDate,
+    eventPlayers: Number(row.eventPlayers),
+    playerId: Number(row.playerId),
+    playerName: row.playerName,
+    rank: toNullableNumber(row.rank),
+    eventWins: toNullableNumber(row.eventWins),
+    eventLosses: toNullableNumber(row.eventLosses),
+    games: records.get(id)?.games ?? 0,
+    wins: records.get(id)?.wins ?? 0,
   };
 }
 
@@ -119,7 +135,7 @@ export class GetListsHandler implements IQueryHandler<GetListsQuery, GetListsRes
   ) {}
 
   async execute({ filter }: GetListsQuery): Promise<GetListsResult> {
-    const { army, caster, unit, page, pageSize } = filter;
+    const { army, caster, unit, playerId, eventId, search, sort, order, page, pageSize } = filter;
 
     const query = applyDateRange(createListQuery(this.dataSource), 'e', filter);
 
@@ -129,6 +145,21 @@ export class GetListsHandler implements IQueryHandler<GetListsQuery, GetListsRes
 
     if (caster) {
       query.andWhere('l.caster = :caster', { caster });
+    }
+
+    if (playerId) {
+      query.andWhere('l.playerId = :playerId', { playerId });
+    }
+
+    if (eventId) {
+      query.andWhere('l.eventId = :eventId', { eventId });
+    }
+
+    if (search) {
+      query.andWhere(
+        '(LOWER(l.title) LIKE :search OR LOWER(l.caster) LIKE :search OR LOWER(pl.name) LIKE :search OR LOWER(e.name) LIKE :search)',
+        { search: toSearchPattern(search) },
+      );
     }
 
     if (unit) {
@@ -144,7 +175,8 @@ export class GetListsHandler implements IQueryHandler<GetListsQuery, GetListsRes
     const total = await query.getCount();
 
     const rows = await query
-      .orderBy('e.date', 'DESC')
+      .orderBy(SORT_COLUMNS[sort ?? 'date'], toSqlOrder(order, sort && sort !== 'date' ? 'asc' : 'desc'))
+      .addOrderBy('e.date', 'DESC')
       .addOrderBy('p.rank', 'ASC')
       .addOrderBy('l.id', 'ASC')
       .offset(page * pageSize)

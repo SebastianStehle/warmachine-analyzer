@@ -30,7 +30,10 @@ There is no API, but everything we need is public HTML — no login required. Th
 - List text is the War Room export: title, `<Faction> - <Army>`, `<Format> - <N> pts`, `PC CARD`, then one line per entry: optional points, indentation, name. Column 8 = top level, deeper = attached to the entry above (battlegroup, mounts). Lines like `3 HEAD - Focus Vault` are modules of the entry above. Duplicates are numbered (`Farrow Sapper 1`, `Farrow Sapper 2`). Then `PC COMMAND CARD` and `TOTAL POINTS x/y`.
 - Longshanks calls the army (e.g. `House Kallyss`) the "Army" — that is what the faction stats group by. The parent faction (`Dusk`) comes from the list header.
 - Keep all Longshanks-specific code (HTTP, HTML parsing) in `backend/src/domain/longshanks/` so the rest of the app only sees typed domain objects.
-- Be a polite client: one request at a time, a fixed delay between requests (named constant), a descriptive User-Agent, and store raw responses in the database so a re-parse never needs a re-download.
+- Be a polite client: all requests go through `RequestThrottle` (at most `LONGSHANKS_MAX_CONCURRENT_REQUESTS` in flight, `LONGSHANKS_REQUEST_DELAY_MS` between starts), a descriptive User-Agent, and raw responses are stored in the `pages` table so a re-parse never needs a re-download.
+- Events are imported in parallel (`CRAWLER_EVENT_CONCURRENCY`, CLI `--parallel`). The throttle is shared, so more parallel events do not mean more load on Longshanks.
+- Imports are idempotent: one transaction per event, the event row is written first (it locks the row, so the same event never imports twice at once), list rows are updated in place so their IDs stay stable, everything else of the event is replaced.
+- A single list record can contain several lists (split by `TOTAL POINTS`), and players can have several records. `sourceId` + `sourceIndex` identify a list.
 - `LONGSHANKS_EMAIL` / `LONGSHANKS_PASSWORD` are optional and currently unused. Never commit them, never log them.
 
 ## Domain
@@ -59,7 +62,8 @@ Each package: `npm run dev` (watch mode), `npm run build`, `npm run lint` / `npm
 
 Backend only:
 - `npm run test:int` — integration tests with TestContainers (needs Docker). Set `TEST_DB_URL` to an admin connection of an existing Postgres server to skip the container.
-- `npm run crawl -- --event <id>` or `npm run crawl -- --from <date> [--to <date>]` — import from Longshanks. `--refresh` ignores the page cache.
+- `npm run crawl -- --event <id>` or `npm run crawl -- --from <date> [--to <date>] [--parallel <n>]` — import from Longshanks. `--refresh` ignores the page cache.
+- `npm run crawl -- --reparse` — re-parse all imported events from stored pages, without downloading. Run it after parser changes.
 - `npm run typeorm:generate-migrations <Name>` — generate TypeORM migrations (data source: `src/domain/database/data-source.ts`).
 
 Env vars are validated per domain with Joi schemas (`DB_ENV_SCHEMA`, `LONGSHANKS_ENV_SCHEMA`, …) combined in `app.module.ts`. New env vars must be added to the matching schema, otherwise startup fails. See `backend/.env.example`.
@@ -84,7 +88,7 @@ Only the OpenAPI spec is committed. The API client is generated from it and is g
 - **Domain areas** (`src/domain/`): `database` (entities, migrations, `CoreModule` with config + TypeORM + CQRS shared by API and CLI), `longshanks` (HTTP client with page cache, HTML parsers), `imports` (`ImportEvent`, `DiscoverEvents`, scheduler), `lists` (list parser, list queries), `events`, `statistics`.
 - An import replaces all rows of the event in one transaction, so imports are idempotent.
 - Games are linked to the played list by comparing the game leader with the list caster (`isSameCaster`, tolerant to typos). Players with a single list always get that list.
-- Parser changes must be checked against real lists. Lists live in `test/fixtures/` (trimmed real HTML) and in `parser.spec.ts`.
+- Parser tests are built around real data: `test/fixtures/lists/*.txt` are real list texts from Longshanks (one per quirk), `test/fixtures/*.html` are trimmed real pages. When a list parses wrongly, add the real text as a fixture and a test for it before fixing the parser.
 - **Database**: TypeORM + Postgres. Entities in `src/domain/database/entities/`, migrations in `src/domain/database/migrations/` — migrations are explicitly registered in `app.module.ts`, so new migrations must be added there.
 - Statistics are computed by query handlers. If they become slow, add materialized aggregates that the import refreshes — do not hand-write SQL against a specific database.
 
@@ -121,6 +125,7 @@ Only the OpenAPI spec is committed. The API client is generated from it and is g
 * Use a fromDomain method for response-dtos. Do not construct the dtos in the constructor.
 * Use daisy-UI components as much as possible.
 * Use spread operators and simplifications for mappings.
+* Order property assignments in object literals like the declaration of the target type (entity, interface, DTO), e.g. `{ gameId, eventId, playerId, opponentId, ... }` in the column order of `GamePlayerEntity`. Prefer explicit assignments over spreads when the source has a different order.
 * Use strict types for typescript code.
 * Use TestContainers for database tests.
 * Use the following syntax for tests: `it('should do y when y')`

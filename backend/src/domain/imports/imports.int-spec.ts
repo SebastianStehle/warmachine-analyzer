@@ -22,6 +22,12 @@ const PAGES: Record<string, string> = {
 
 describe('Imports', () => {
   let context: IntegrationTestContext;
+  let listIdsAfterFirstImport: number[];
+
+  const loadListIds = async () => {
+    const { items } = await context.queryBus.execute(new GetListsQuery({ page: 0, pageSize: 10 }));
+    return items.map(({ id }) => id).sort();
+  };
 
   beforeAll(async () => {
     const client = {
@@ -38,6 +44,8 @@ describe('Imports', () => {
     );
 
     await context.commandBus.execute(new ImportEvent(EVENT_ID));
+    listIdsAfterFirstImport = await loadListIds();
+
     // Importing twice must replace the data instead of duplicating it.
     await context.commandBus.execute(new ImportEvent(EVENT_ID));
   });
@@ -54,6 +62,10 @@ describe('Imports', () => {
       { army: 'Thornfall Alliance', players: 1, lists: 2, games: 0, wins: 0, winRate: null },
       { army: 'Fane of Nyrro', players: 1, lists: 0, games: 1, wins: 0, winRate: 0 },
     ]);
+  });
+
+  it('should keep list IDs when an event is imported again', async () => {
+    expect(await loadListIds()).toEqual(listIdsAfterFirstImport);
   });
 
   it('should link games to the played list by caster', async () => {
@@ -92,6 +104,7 @@ describe('Imports', () => {
     expect(list.playedGames).toEqual([
       {
         round: 1,
+        opponentId: 53020,
         scenario: 'Two Fronts',
         opponentName: 'KingWulph',
         opponentArmy: 'Fane of Nyrro',

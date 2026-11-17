@@ -4,11 +4,12 @@ import { Logger, Module } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { CommandBus } from '@nestjs/cqrs';
 import { CoreModule } from './domain/database';
-import { DiscoverEvents, ImportEvent, ImportsModule } from './domain/imports';
+import { DiscoverEvents, ImportEvent, ImportsModule, ReparseEvents } from './domain/imports';
 
 const USAGE = `Usage:
   npm run crawl -- --event <id> [--refresh]
-  npm run crawl -- --from <YYYY-MM-DD> [--to <YYYY-MM-DD>] [--refresh]`;
+  npm run crawl -- --from <YYYY-MM-DD> [--to <YYYY-MM-DD>] [--parallel <events>] [--refresh]
+  npm run crawl -- --reparse     re-parse all imported events from stored pages, without downloading`;
 
 @Module({
   imports: [CoreModule, ImportsModule],
@@ -22,11 +23,13 @@ async function crawl() {
       from: { type: 'string' },
       to: { type: 'string' },
       refresh: { type: 'boolean', default: false },
+      parallel: { type: 'string' },
+      reparse: { type: 'boolean', default: false },
     },
   });
 
-  const { event, from, to, refresh } = values;
-  if (!event && !from) {
+  const { event, from, to, refresh, parallel, reparse } = values;
+  if (!event && !from && !reparse) {
     console.log(USAGE);
     process.exit(1);
   }
@@ -36,12 +39,17 @@ async function crawl() {
   const logger = new Logger('Crawler');
 
   try {
-    if (event) {
+    if (reparse) {
+      const { reparsed, failed } = await commandBus.execute(new ReparseEvents());
+      logger.log(`Re-parsed ${reparsed} events, failed ${failed}.`);
+    } else if (event) {
       const { status, lists, games } = await commandBus.execute(new ImportEvent(parseInt(event, 10), refresh));
       logger.log(`Event ${event}: ${status}, ${lists} lists, ${games} games.`);
     } else {
       const until = to ?? new Date().toISOString().substring(0, 10);
-      const { found, imported, failed } = await commandBus.execute(new DiscoverEvents(from!, until, refresh));
+      const { found, imported, failed } = await commandBus.execute(
+        new DiscoverEvents(from!, until, refresh, parallel ? parseInt(parallel, 10) : undefined),
+      );
       logger.log(`Found ${found} events, imported ${imported}, failed ${failed}.`);
     }
   } finally {

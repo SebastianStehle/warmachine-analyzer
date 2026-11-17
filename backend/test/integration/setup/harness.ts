@@ -1,11 +1,13 @@
 import { randomUUID } from 'crypto';
 import { INestApplication, ModuleMetadata } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { CommandBus, CqrsModule, QueryBus } from '@nestjs/cqrs';
 import { Test, TestingModuleBuilder } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { PostgresConnectionOptions } from 'typeorm/driver/postgres/PostgresConnectionOptions';
 import { inject } from 'vitest';
 import AppDataSource from 'src/domain/database/data-source';
+import { longshanksConfig } from 'src/domain/longshanks/config';
 import { runAdminStatement, withDatabase } from './database';
 
 export interface IntegrationTestContext {
@@ -30,6 +32,7 @@ export async function createIntegrationTest(
   let builder = Test.createTestingModule({
     ...metadata,
     imports: [
+      ConfigModule.forRoot({ isGlobal: true, ignoreEnvFile: true, load: [longshanksConfig] }),
       CqrsModule.forRoot(),
       TypeOrmModule.forRoot({
         ...options,

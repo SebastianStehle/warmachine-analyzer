@@ -24,9 +24,13 @@ npm run crawl -- --event 38573                 # a single event
 npm run crawl -- --from 2026-01-01             # all events with lists since a date
 npm run crawl -- --from 2026-10-01 --to 2026-10-31
 npm run crawl -- --event 38573 --refresh       # download everything again
+npm run crawl -- --from 2025-01-01 --parallel 3 # import 3 events at once
+npm run crawl -- --reparse                     # re-parse everything from stored pages, no downloads
 ```
 
-Then start the app:
+Then start the app. Besides factions and lists there are pages for players and events, every table can be sorted, and most can be searched.
+
+Start it with:
 
 ```bash
 npm run dev             # from the repo root: Postgres, backend and frontend
@@ -37,9 +41,10 @@ Open http://localhost:5173. The API docs are at http://localhost:3000/api.
 ## How the crawler works
 
 - Longshanks has no API, so the crawler reads the same HTML the event page loads. No login is needed.
-- It waits one second between requests (`LONGSHANKS_REQUEST_DELAY_MS`). A crawl of a whole year takes a while, that is expected.
+- It sends at most 2 requests at a time with at least one second between them (`LONGSHANKS_MAX_CONCURRENT_REQUESTS`, `LONGSHANKS_REQUEST_DELAY_MS`) and imports 2 events in parallel (`CRAWLER_EVENT_CONCURRENCY`). A first crawl of a whole year takes a few hours, that is expected. Please keep the limits low, Longshanks is a hobby project.
 - Only finished events are imported. Re-importing an event replaces its data.
-- Every downloaded page is stored in the `pages` table. If the list parser improves, run the crawl again: finished events are parsed from the stored pages without downloading them again. Use `--refresh` to force a download.
+- Every downloaded page is stored in the `pages` table. If the list parser improves, run `npm run crawl -- --reparse`: all events are parsed again from the stored pages without downloading anything. Use `--refresh` to force a download.
+- Importing an event again is safe: its data is replaced in one transaction and list IDs stay the same, so links keep working.
 - Games are linked to the list that was played by comparing the leader Longshanks shows for the game with the caster of each list. If a player submitted only one list, that list is used.
 
 To keep the database up to date while the backend runs, set a schedule in `backend/.env`:

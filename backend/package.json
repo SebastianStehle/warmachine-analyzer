@@ -16,10 +16,10 @@
     "lint:fix": "eslint \"{src,test}/**/*.ts\" --max-warnings 0 --fix",
     "typeorm": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli",
     "typeorm:generate-migrations": "npm run typeorm migration:generate -- -d ./src/domain/database/data-source.ts",
+    "openapi": "node ../scripts/export-openapi.mjs http://localhost:3000/api-json openapi.yaml",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:int": "vitest run --config vitest.integration.config.ts",
-    "openapi": "node ../scripts/export-openapi.mjs http://localhost:3000/api-json openapi.yaml"
+    "test:int": "vitest run --config vitest.integration.config.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.2.10",

@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { PageEntity, PageRepository } from 'src/domain/database';
 import { LongshanksConfig } from './config';
+import { RequestThrottle } from './throttle';
 
 const USER_AGENT = 'warmachine-analyzer (+https://github.com/SebastianStehle)';
 
@@ -10,7 +11,7 @@ const USER_AGENT = 'warmachine-analyzer (+https://github.com/SebastianStehle)';
 export class LongshanksClient {
   private readonly logger = new Logger(LongshanksClient.name);
   private readonly config: LongshanksConfig;
-  private lastRequest = 0;
+  private readonly throttle: RequestThrottle;
 
   constructor(
     @InjectRepository(PageEntity)
@@ -18,6 +19,7 @@ export class LongshanksClient {
     configService: ConfigService,
   ) {
     this.config = configService.getOrThrow<LongshanksConfig>('longshanks');
+    this.throttle = new RequestThrottle(this.config.maxConcurrentRequests, this.config.requestDelayMs);
   }
 
   // Raw pages are stored, so a parser fix can re-import finished events without downloading them again.
@@ -31,26 +33,18 @@ export class LongshanksClient {
       }
     }
 
-    await this.waitForTurn();
+    const body = await this.throttle.run(async () => {
+      this.logger.log(`Downloading ${url}`);
 
-    this.logger.log(`Downloading ${url}`);
-    const response = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
-    if (!response.ok) {
-      throw new Error(`Failed to download ${url}, got ${response.status}.`);
-    }
+      const response = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
+      if (!response.ok) {
+        throw new Error(`Failed to download ${url}, got ${response.status}.`);
+      }
 
-    const body = await response.text();
+      return response.text();
+    });
+
     await this.pages.save({ url, body });
-
     return body;
-  }
-
-  private async waitForTurn() {
-    const wait = this.lastRequest + this.config.requestDelayMs - Date.now();
-    if (wait > 0) {
-      await new Promise((resolve) => setTimeout(resolve, wait));
-    }
-
-    this.lastRequest = Date.now();
   }
 }

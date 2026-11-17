@@ -1,13 +1,18 @@
+import { PageRequest, SortRequest } from 'src/domain/common/query';
 import { GameResult, ListEntryKind } from 'src/domain/database';
 
-export interface ListFilter {
+export type ListSortField = 'date' | 'event' | 'player' | 'rank' | 'army' | 'caster';
+
+export interface ListFilter extends PageRequest, SortRequest<ListSortField> {
   army?: string;
   caster?: string;
   unit?: string;
+  playerId?: number;
+  eventId?: number;
+  // Matches title, caster, player and event.
+  search?: string;
   from?: string;
   to?: string;
-  page: number;
-  pageSize: number;
 }
 
 export interface ListSummary {
@@ -40,6 +45,7 @@ export interface ListEntry {
 
 export interface ListGame {
   round: number;
+  opponentId: number | null;
   scenario: string | null;
   opponentName: string | null;
   opponentArmy: string | null;

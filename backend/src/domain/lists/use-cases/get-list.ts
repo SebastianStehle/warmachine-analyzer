@@ -4,7 +4,7 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { ArmyListEntity, GameEntity, GamePlayerEntity, ListEntryEntity, PlayerEntity } from 'src/domain/database';
 import { ListDetails } from '../interfaces';
-import { createListQuery, ListRow, loadListRecords, toListSummary } from './get-lists';
+import { createListQuery, ListRow, loadListRecords, toListSummary, toNullableNumber } from './get-lists';
 
 export class GetListQuery extends Query<GetListResult> {
   constructor(public readonly listId: number) {
@@ -43,6 +43,7 @@ export class GetListHandler implements IQueryHandler<GetListQuery, GetListResult
       .leftJoin(PlayerEntity, 'o', 'o.id = gp.opponentId')
       .select('g.round', 'round')
       .addSelect('g.scenario', 'scenario')
+      .addSelect('gp.opponentId', 'opponentId')
       .addSelect('o.name', 'opponentName')
       .addSelect('gp.opponentArmy', 'opponentArmy')
       .addSelect('gp.opponentCaster', 'opponentCaster')
@@ -63,11 +64,16 @@ export class GetListHandler implements IQueryHandler<GetListQuery, GetListResult
       commandCards: list.commandCards,
       warnings: list.warnings,
       entries: entries.map(({ name, points, depth, kind }) => ({ name, points: points ?? null, depth, kind })),
-      playedGames: games.map(({ round, controlPoints, armyPoints, ...game }) => ({
-        ...game,
-        round: Number(round),
-        controlPoints: controlPoints === null ? null : Number(controlPoints),
-        armyPoints: armyPoints === null ? null : Number(armyPoints),
+      playedGames: games.map((game) => ({
+        round: Number(game.round),
+        opponentId: toNullableNumber(game.opponentId),
+        scenario: game.scenario,
+        opponentName: game.opponentName,
+        opponentArmy: game.opponentArmy,
+        opponentCaster: game.opponentCaster,
+        result: game.result,
+        controlPoints: toNullableNumber(game.controlPoints),
+        armyPoints: toNullableNumber(game.armyPoints),
       })),
     });
   }

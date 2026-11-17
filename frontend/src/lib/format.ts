@@ -11,5 +11,3 @@ export function formatPercent(value: number | null | undefined) {
 export function share(part: number, total: number) {
   return total > 0 ? part / total : null;
 }
-
-export const LONGSHANKS_URL = 'https://warmachine.longshanks.org';

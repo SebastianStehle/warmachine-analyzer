@@ -1,6 +1,6 @@
 import { ObjectLiteral, SelectQueryBuilder } from 'typeorm';
 import { GameResult } from 'src/domain/database';
-import { DateRange, Record } from './interfaces';
+import { DateRange, GameRecord } from './interfaces';
 
 export function applyDateRange<T extends ObjectLiteral>(
   query: SelectQueryBuilder<T>,
@@ -27,11 +27,11 @@ export function selectRecord<T extends ObjectLiteral>(query: SelectQueryBuilder<
     .addSelect(`SUM(CASE WHEN ${alias}.result = 'draw' THEN 1 ELSE 0 END)`, 'draws');
 }
 
-export function toRecord(row?: { games?: unknown; wins?: unknown; losses?: unknown; draws?: unknown }): Record {
+export function toRecord(row?: { games?: unknown; wins?: unknown; losses?: unknown; draws?: unknown }): GameRecord {
   return createRecord(Number(row?.games ?? 0), Number(row?.wins ?? 0), Number(row?.losses ?? 0), Number(row?.draws ?? 0));
 }
 
-export function createRecord(games: number, wins: number, losses: number, draws: number): Record {
+export function createRecord(games: number, wins: number, losses: number, draws: number): GameRecord {
   return { games, wins, losses, draws, winRate: games > 0 ? (wins + draws / 2) / games : null };
 }
 

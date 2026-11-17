@@ -1,13 +1,46 @@
 import { ApiProperty, IntersectionType } from '@nestjs/swagger';
-import { IsOptional, IsString } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsEnum, IsInt, IsOptional, IsString } from 'class-validator';
 import { GameResult, ListEntryKind } from 'src/domain/database';
-import { ListDetails, ListEntry, ListGame, ListSummary } from 'src/domain/lists';
-import { DateRangeQueryDto, PageQueryDto } from '../shared';
+import { ListDetails, ListEntry, ListGame, ListSortField, ListSummary } from 'src/domain/lists';
+import { DateRangeQueryDto, PageQueryDto, SearchQueryDto, toEnumObject } from '../shared';
 
 const LIST_ENTRY_KINDS: ListEntryKind[] = ['leader', 'model', 'module'];
 const GAME_RESULTS: GameResult[] = ['win', 'loss', 'draw'];
 
-export class ListsQueryDto extends IntersectionType(DateRangeQueryDto, PageQueryDto) {
+const LIST_SORT_FIELDS = toEnumObject<ListSortField>(['date', 'event', 'player', 'rank', 'army', 'caster']);
+
+export class ListsQueryDto extends IntersectionType(DateRangeQueryDto, PageQueryDto, SearchQueryDto) {
+  @ApiProperty({
+    description: 'The field to sort by.',
+    required: false,
+    enum: LIST_SORT_FIELDS,
+    enumName: 'ListSortField',
+  })
+  @IsOptional()
+  @IsEnum(LIST_SORT_FIELDS)
+  sort?: ListSortField;
+
+  @ApiProperty({
+    description: 'Only lists of this player.',
+    required: false,
+    type: Number,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  playerId?: number;
+
+  @ApiProperty({
+    description: 'Only lists of this event.',
+    required: false,
+    type: Number,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  eventId?: number;
+
   @ApiProperty({
     description: 'Only lists of this army.',
     required: false,
@@ -130,6 +163,9 @@ export class ListEntryDto {
 export class ListGameDto {
   @ApiProperty({ description: 'The round.', required: true })
   round: number;
+
+  @ApiProperty({ description: 'The Longshanks ID of the opponent.', required: true, nullable: true, type: Number })
+  opponentId: number | null;
 
   @ApiProperty({ description: 'The scenario.', required: true, nullable: true, type: String })
   scenario: string | null;

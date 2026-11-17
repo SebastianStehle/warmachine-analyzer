@@ -17,6 +17,9 @@ export class ArmyListEntity {
   @Column('int')
   sourceId: number;
 
+  @Column('int', { default: 0 })
+  sourceIndex: number;
+
   @Column('varchar', { length: 200 })
   title: string;
 

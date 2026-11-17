@@ -3,7 +3,7 @@ export interface DateRange {
   to?: string;
 }
 
-export interface Record {
+export interface GameRecord {
   games: number;
   wins: number;
   losses: number;
@@ -12,7 +12,7 @@ export interface Record {
   winRate: number | null;
 }
 
-export interface FactionStats extends Record {
+export interface FactionStats extends GameRecord {
   army: string;
   faction: string | null;
   players: number;
@@ -20,19 +20,19 @@ export interface FactionStats extends Record {
   mirrors: number;
 }
 
-export interface CasterStats extends Record {
+export interface CasterStats extends GameRecord {
   caster: string;
   lists: number;
 }
 
-export interface UnitStats extends Record {
+export interface UnitStats extends GameRecord {
   name: string;
   lists: number;
   copies: number;
   averagePoints: number | null;
 }
 
-export interface MatchupStats extends Record {
+export interface MatchupStats extends GameRecord {
   opponent: string;
 }
 

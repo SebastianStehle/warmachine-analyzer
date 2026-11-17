@@ -1,7 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, Matches, Max, Min } from 'class-validator';
-import { Record } from 'src/domain/statistics';
+import { IsEnum, IsInt, IsOptional, IsString, Matches, Max, Min } from 'class-validator';
+import { SortOrder } from 'src/domain/common/query';
+import { GameRecord } from 'src/domain/statistics';
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_PAGE_SIZE = 200;
@@ -50,6 +51,37 @@ export class PageQueryDto {
   pageSize = DEFAULT_PAGE_SIZE;
 }
 
+const SORT_ORDERS: Record<SortOrder, SortOrder> = { asc: 'asc', desc: 'desc' };
+
+export class SearchQueryDto {
+  @ApiProperty({
+    description: 'Case insensitive text search.',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  search?: string;
+
+  @ApiProperty({
+    description: 'The sort direction.',
+    required: false,
+    enum: SORT_ORDERS,
+    enumName: 'SortOrder',
+  })
+  @IsOptional()
+  @IsEnum(SORT_ORDERS)
+  order?: SortOrder;
+}
+
+// Swagger and class-validator both need the allowed values of a string union as an object.
+export const toEnumObject = <T extends string>(values: readonly T[]) => {
+  const result = {} as Record<T, T>;
+  for (const value of values) {
+    result[value] = value;
+  }
+  return result;
+};
+
 export class RecordDto {
   @ApiProperty({
     description: 'The number of games, without byes and mirror matches.',
@@ -83,7 +115,7 @@ export class RecordDto {
   })
   winRate: number | null;
 
-  static assignRecord(target: RecordDto, { games, wins, losses, draws, winRate }: Record) {
+  static assignRecord(target: RecordDto, { games, wins, losses, draws, winRate }: GameRecord) {
     Object.assign(target, { games, wins, losses, draws, winRate });
   }
 }

@@ -1,13 +1,26 @@
 import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useClients } from 'src/api';
-import { QueryState, Share, WinRate } from 'src/components';
+import { FactionStatsDto, useClients } from 'src/api';
+import { ArmyLink, PageHeader, QueryState, SearchInput, Share, SortHeader, StatTile, WinRate } from 'src/components';
 import { useDateRange } from 'src/lib/date-range';
+import { matchesSearch, useClientSort } from 'src/lib/sorting';
+
+const SORT_ACCESSORS = {
+  army: (x: FactionStatsDto) => x.army,
+  faction: (x: FactionStatsDto) => x.faction,
+  players: (x: FactionStatsDto) => x.players,
+  lists: (x: FactionStatsDto) => x.lists,
+  winRate: (x: FactionStatsDto) => x.winRate,
+  games: (x: FactionStatsDto) => x.games,
+  mirrors: (x: FactionStatsDto) => x.mirrors,
+};
 
 export function FactionsPage() {
   const clients = useClients();
   const navigate = useNavigate();
   const { from, to } = useDateRange();
+  const [search, setSearch] = useState('');
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['factions', from, to],
@@ -15,43 +28,73 @@ export function FactionsPage() {
   });
 
   const items = data?.items ?? [];
+  const filtered = items.filter(({ army, faction }) => matchesSearch(search, army, faction));
+  const { sorted, sort, toggle } = useClientSort(filtered, SORT_ACCESSORS, { key: 'players', order: 'desc' });
 
   let totalPlayers = 0;
-  for (const { players } of items) {
+  let totalLists = 0;
+  let totalGames = 0;
+  for (const { players, lists, games, mirrors } of items) {
     totalPlayers += players;
+    totalLists += lists;
+    // Every game is counted for both sides, mirrors once per game already.
+    totalGames += games / 2 + mirrors;
   }
 
   return (
-    <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-2xl font-bold">Factions</h1>
-        <p className="text-base-content/80 text-sm">
-          Win rates exclude byes and mirror matches. Rates based on fewer than 10 games are faded.
-        </p>
-      </div>
+    <>
+      <PageHeader
+        kicker="Meta overview"
+        title="Factions"
+        description="Share of players, submitted lists and win rates per army. Win rates leave out byes and mirror matches, rates from fewer than 10 games are faded."
+        actions={<SearchInput value={search} onChange={setSearch} placeholder="Search armies" />}
+      />
 
       <QueryState isLoading={isLoading} error={error} isEmpty={items.length === 0}>
-        <div className="card bg-base-100 overflow-x-auto shadow-sm">
-          <table className="table-zebra table">
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+          <StatTile label="Armies" value={items.length} />
+          <StatTile label="Players" value={totalPlayers} detail="Event participations" />
+          <StatTile label="Lists" value={totalLists} />
+          <StatTile label="Games" value={Math.round(totalGames)} />
+        </div>
+
+        <div className="panel overflow-x-auto">
+          <table className="table">
             <thead>
               <tr>
-                <th>Army</th>
-                <th>Faction</th>
-                <th>Share of players</th>
-                <th>Lists</th>
-                <th>Win rate</th>
-                <th>W / L / D</th>
-                <th>Mirrors</th>
+                <SortHeader sortKey="army" sort={sort} onSort={toggle}>
+                  Army
+                </SortHeader>
+                <SortHeader sortKey="faction" sort={sort} onSort={toggle}>
+                  Faction
+                </SortHeader>
+                <SortHeader sortKey="players" sort={sort} onSort={toggle}>
+                  Share of players
+                </SortHeader>
+                <SortHeader sortKey="lists" sort={sort} onSort={toggle}>
+                  Lists
+                </SortHeader>
+                <SortHeader sortKey="winRate" sort={sort} onSort={toggle}>
+                  Win rate
+                </SortHeader>
+                <SortHeader sortKey="games" sort={sort} onSort={toggle}>
+                  W / L / D
+                </SortHeader>
+                <SortHeader sortKey="mirrors" sort={sort} onSort={toggle}>
+                  Mirrors
+                </SortHeader>
               </tr>
             </thead>
             <tbody>
-              {items.map(({ army, faction, players, lists, games, wins, losses, draws, winRate, mirrors }) => (
+              {sorted.map(({ army, faction, players, lists, games, wins, losses, draws, winRate, mirrors }) => (
                 <tr
                   key={army}
                   className="hover:bg-base-200 cursor-pointer"
                   onClick={() => navigate(`/factions/${encodeURIComponent(army)}`)}
                 >
-                  <td className="font-semibold">{army}</td>
+                  <td className="font-semibold">
+                    <ArmyLink army={army} faction={faction} />
+                  </td>
                   <td>{faction ?? '–'}</td>
                   <td>
                     <Share part={players} total={totalPlayers} />
@@ -70,6 +113,6 @@ export function FactionsPage() {
           </table>
         </div>
       </QueryState>
-    </div>
+    </>
   );
 }

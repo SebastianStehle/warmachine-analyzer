@@ -32,8 +32,8 @@ const COMMAND_CARD_HEADER = /^PC\s+COMMAND\s+CARD$/i;
 const TOTAL_POINTS = /^TOTAL\s+POINTS\s+(\d+)\s*\/\s*(\d+)/i;
 const FORMAT_LINE = /^(.+?)\s+-\s+(\d+)\s*pts$/i;
 const ENTRY_LINE = /^\s*(\d+)?\s*(\S.*?)\s*$/;
-// Modules of customizable jacks, e.g. "HEAD - Focus Vault" or "RIGHT HEX BLADE - Force Generator Right".
-const MODULE_NAME = /^[A-Z][A-Z ]+ - /;
+// Modules and equipment are written with an upper case slot, e.g. "HEAD - Focus Vault", "RIGHT HEX BLADE - Force Generator" or "DEFENSE 1 - Barrier".
+const MODULE_NAME = /^[A-Z][A-Z0-9 '&/.]*? - /;
 const NUMBER_SUFFIX = /\s+\d+$/;
 const MIN_FUZZY_LENGTH = 6;
 const MAX_TYPOS = 2;

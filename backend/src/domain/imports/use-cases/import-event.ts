@@ -31,6 +31,8 @@ export class ImportEvent extends Command<ImportEventResult> {
   constructor(
     public readonly eventId: number,
     public readonly refresh = false,
+    // Re-parses a finished event completely from stored pages, including the header.
+    public readonly reparse = false,
   ) {
     super();
   }
@@ -46,12 +48,16 @@ export class ImportEventResult {
 
 interface PlayerList {
   sourceId: number;
+  sourceIndex: number;
   list: ParsedList;
 }
+
+const listKey = (playerId: number, sourceId: number, sourceIndex: number) => `${playerId}:${sourceId}:${sourceIndex}`;
 
 @CommandHandler(ImportEvent)
 export class ImportEventHandler implements ICommandHandler<ImportEvent, ImportEventResult> {
   private readonly logger = new Logger(ImportEventHandler.name);
+  private readonly running = new Set<number>();
 
   constructor(
     private readonly client: LongshanksClient,
@@ -60,10 +66,25 @@ export class ImportEventHandler implements ICommandHandler<ImportEvent, ImportEv
   ) {}
 
   async execute(command: ImportEvent): Promise<ImportEventResult> {
-    const { eventId, refresh } = command;
+    const { eventId } = command;
 
-    // The header is always downloaded, because it tells whether the event is finished.
-    const event = parseEventPage(await this.client.get(`/event/${eventId}/`, false), eventId);
+    // Parallel imports must not work on the same event twice. Other processes are serialized by the event row lock in save().
+    if (this.running.has(eventId)) {
+      this.logger.log(`Skipping event ${eventId}, it is already being imported.`);
+      return new ImportEventResult('skipped');
+    }
+
+    this.running.add(eventId);
+    try {
+      return await this.importEvent(command);
+    } finally {
+      this.running.delete(eventId);
+    }
+  }
+
+  private async importEvent({ eventId, refresh, reparse }: ImportEvent) {
+    // The header is downloaded unless re-parsing, because it tells whether the event is finished.
+    const event = parseEventPage(await this.client.get(`/event/${eventId}/`, reparse), eventId);
     if (!event.isFinished) {
       this.logger.log(`Skipping event ${eventId} (${event.name}), it is not finished.`);
       return new ImportEventResult('skipped');
@@ -124,14 +145,18 @@ export class ImportEventHandler implements ICommandHandler<ImportEvent, ImportEv
       try {
         const playerLists: PlayerList[] = [];
         for (const { sourceId, text } of parseListTexts(await this.client.get(path, useCache))) {
-          for (const list of parseArmyLists(text)) {
+          // A single list record often contains several lists, separated by their TOTAL POINTS lines.
+          const parsed = parseArmyLists(text);
+          for (let sourceIndex = 0; sourceIndex < parsed.length; sourceIndex++) {
+            const list = parsed[sourceIndex];
+
             // Usually the start of a list that was cut off, the full list is in another record.
             if (list.entries.length === 0) {
               this.logger.warn(`Skipping list '${list.title}' of player ${playerId} in event ${eventId}, it has no entries.`);
               continue;
             }
 
-            playerLists.push({ sourceId, list });
+            playerLists.push({ sourceId, sourceIndex, list });
           }
         }
 
@@ -153,24 +178,39 @@ export class ImportEventHandler implements ICommandHandler<ImportEvent, ImportEv
   ) {
     const eventId = event.id;
 
-    for (const entity of [GamePlayerEntity, GameEntity, ListEntryEntity, ArmyListEntity, ParticipantEntity]) {
-      await manager.delete(entity, { eventId });
-    }
-
     let rounds = 0;
     for (const { round } of games) {
       rounds = Math.max(rounds, round);
     }
 
-    await manager.save(EventEntity, {
-      id: eventId,
-      name: event.name,
-      date: event.date,
-      location: event.location,
-      type: event.type,
-      playerCount: event.playerCount || standings.length,
-      rounds,
-    });
+    // Writing the event row first locks it until the transaction ends, so two processes importing the same event run one after another.
+    await manager.upsert(
+      EventEntity,
+      {
+        id: eventId,
+        name: event.name,
+        date: event.date,
+        location: event.location,
+        type: event.type,
+        playerCount: event.playerCount || standings.length,
+        rounds,
+      },
+      ['id'],
+    );
+
+    // Lists keep their IDs across imports, so links to them stay valid.
+    const existingListIds = new Map<string, number>();
+    for (const { id, playerId, sourceId, sourceIndex } of await manager.find(ArmyListEntity, {
+      where: { eventId },
+      select: { id: true, playerId: true, sourceId: true, sourceIndex: true },
+    })) {
+      existingListIds.set(listKey(playerId, sourceId, sourceIndex), id);
+    }
+
+    // List rows are updated in place instead, everything else of the event is replaced.
+    for (const entity of [GamePlayerEntity, GameEntity, ListEntryEntity, ParticipantEntity]) {
+      await manager.delete(entity, { eventId });
+    }
 
     const players = new Map<number, string>();
     for (const { playerId, playerName } of standings) {
@@ -210,21 +250,40 @@ export class ImportEventHandler implements ICommandHandler<ImportEvent, ImportEv
       });
 
       const saved: ArmyListEntity[] = [];
-      for (const { sourceId, list } of playerLists) {
-        const { entries, ...header } = list;
-
-        const entity = await manager.save(ArmyListEntity, {
-          ...header,
+      for (const { sourceId, sourceIndex, list } of playerLists) {
+        const values = {
           eventId,
           playerId,
           sourceId,
+          sourceIndex,
+          title: list.title,
+          faction: list.faction,
           // Longshanks is the source of truth for the army, the list header is free text.
-          army: army ?? header.army,
-        });
+          army: army ?? list.army,
+          caster: list.caster,
+          format: list.format,
+          pointLevel: list.pointLevel,
+          totalPoints: list.totalPoints,
+          commandCards: list.commandCards,
+          warnings: list.warnings,
+          rawText: list.rawText,
+        };
+
+        const key = listKey(playerId, sourceId, sourceIndex);
+        const existingId = existingListIds.get(key);
+
+        let entity: ArmyListEntity;
+        if (existingId) {
+          await manager.update(ArmyListEntity, existingId, values);
+          existingListIds.delete(key);
+          entity = { ...values, id: existingId } as ArmyListEntity;
+        } else {
+          entity = await manager.save(ArmyListEntity, values);
+        }
 
         await manager.save(
           ListEntryEntity,
-          entries.map(({ name, baseName, points, depth, kind }, position) => ({
+          list.entries.map(({ name, baseName, points, depth, kind }, position) => ({
             listId: entity.id,
             eventId,
             position,
@@ -240,6 +299,11 @@ export class ImportEventHandler implements ICommandHandler<ImportEvent, ImportEv
       }
 
       storedLists.set(playerId, saved);
+    }
+
+    // Lists that were removed on Longshanks.
+    if (existingListIds.size > 0) {
+      await manager.delete(ArmyListEntity, [...existingListIds.values()]);
     }
 
     for (const game of games) {

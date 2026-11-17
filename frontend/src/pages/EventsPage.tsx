@@ -1,54 +1,84 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
-import { useClients } from 'src/api';
-import { Pagination, QueryState } from 'src/components';
-import { LONGSHANKS_URL } from 'src/lib/format';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { EventSortField, SortOrder, useClients } from 'src/api';
+import { EventLink, PageHeader, Pagination, QueryState, SearchInput, SortHeader } from 'src/components';
+import { useDateRange } from 'src/lib/date-range';
+import { useServerSort } from 'src/lib/sorting';
 
 const PAGE_SIZE = 50;
 
 export function EventsPage() {
   const clients = useClients();
-  const [page, setPage] = useState(0);
+  const navigate = useNavigate();
+  const { from, to } = useDateRange();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { sort, toggle } = useServerSort<EventSortField>({ key: 'date', order: 'desc' }, ['name']);
+
+  const search = searchParams.get('search') ?? '';
+  const page = Number(searchParams.get('page') ?? 0);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['events', page],
-    queryFn: () => clients.events.getEvents(page, PAGE_SIZE),
+    queryKey: ['events', from, to, search, sort, page],
+    queryFn: () => clients.events.getEvents(from, to, page, PAGE_SIZE, search || undefined, sort.order as SortOrder, sort.key),
     placeholderData: keepPreviousData,
   });
 
+  const setParam = (key: 'search' | 'page', value: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (value) {
+      next.set(key, value);
+    } else {
+      next.delete(key);
+    }
+    if (key === 'search') {
+      next.delete('page');
+    }
+    setSearchParams(next);
+  };
+
   return (
-    <div className="flex flex-col gap-4">
-      <h1 className="text-2xl font-bold">Imported events</h1>
+    <>
+      <PageHeader
+        kicker="Tournaments"
+        title="Events"
+        description="All imported events with their final standings."
+        actions={
+          <SearchInput value={search} onChange={(value) => setParam('search', value)} placeholder="Search name or location" />
+        }
+      />
 
       <QueryState isLoading={isLoading} error={error} isEmpty={data?.total === 0}>
         {data && (
           <>
-            <div className="card bg-base-100 overflow-x-auto shadow-sm">
-              <table className="table-zebra table">
+            <div className="panel overflow-x-auto">
+              <table className="table">
                 <thead>
                   <tr>
-                    <th>Date</th>
-                    <th>Event</th>
+                    <SortHeader sortKey="date" sort={sort} onSort={toggle}>
+                      Date
+                    </SortHeader>
+                    <SortHeader sortKey="name" sort={sort} onSort={toggle}>
+                      Event
+                    </SortHeader>
                     <th>Type</th>
-                    <th>Players</th>
-                    <th>Rounds</th>
+                    <SortHeader sortKey="players" sort={sort} onSort={toggle}>
+                      Players
+                    </SortHeader>
+                    <SortHeader sortKey="rounds" sort={sort} onSort={toggle}>
+                      Rounds
+                    </SortHeader>
                     <th>Lists</th>
                   </tr>
                 </thead>
                 <tbody>
                   {data.items.map(({ id, date, name, location, type, playerCount, rounds, lists }) => (
-                    <tr key={id}>
+                    <tr key={id} className="hover:bg-base-200 cursor-pointer" onClick={() => navigate(`/events/${id}`)}>
                       <td className="whitespace-nowrap">{date}</td>
                       <td>
-                        <a
-                          className="link link-hover font-semibold"
-                          href={`${LONGSHANKS_URL}/event/${id}/`}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          {name}
-                        </a>
-                        {location && <div className="text-base-content/70 text-xs">{location}</div>}
+                        <EventLink id={id}>
+                          <span className="font-semibold">{name}</span>
+                        </EventLink>
+                        {location && <div className="text-base-content/80 text-xs">{location}</div>}
                       </td>
                       <td>{type ?? '–'}</td>
                       <td>{playerCount}</td>
@@ -60,10 +90,10 @@ export function EventsPage() {
               </table>
             </div>
 
-            <Pagination page={page} pageSize={PAGE_SIZE} total={data.total} onChange={setPage} />
+            <Pagination page={page} pageSize={PAGE_SIZE} total={data.total} onChange={(next) => setParam('page', String(next))} />
           </>
         )}
       </QueryState>
-    </div>
+    </>
   );
 }

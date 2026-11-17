@@ -14,6 +14,37 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    restart: unless-stopped
+
+  # The image published by the GitHub workflow. Runs on another port than the backend in development.
+  analyzer:
+    image: ${ANALYZER_IMAGE:-ghcr.io/sebastianstehle/warmachine-analyzer:latest}
+    depends_on:
+      postgresql:
+        condition: service_healthy
+    environment:
+      - DB_URL=postgres://admin:secret@postgresql:5432/analyzer?sslmode=disable
+      - CRAWLER_SCHEDULE=0 4 * * *
+      - CRAWLER_LOOKBACK_DAYS=14
+    ports:
+      - '3100:3000'
+    labels:
+      - com.centurylinklabs.watchtower.enable=true
+    restart: unless-stopped
+
+  # Pulls new images of the analyzer and restarts it, start with `docker compose --profile autoupdate up -d`.
+  # The original containrrr/watchtower is archived, nickfedor/watchtower is the maintained fork.
+  watchtower:
+    image: nickfedor/watchtower
+    profiles:
+      - autoupdate
+    environment:
+      - WATCHTOWER_LABEL_ENABLE=true
+      - WATCHTOWER_POLL_INTERVAL=300
+      - WATCHTOWER_CLEANUP=true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
 
 volumes:
   postgres-data:

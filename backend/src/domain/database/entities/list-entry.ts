@@ -1,4 +1,6 @@
-import { Column, Entity, Index, PrimaryGeneratedColumn, Repository } from 'typeorm';
+import { Column, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn, Repository } from 'typeorm';
+import { ArmyListEntity } from './army-list';
+import { ModelEntity } from './model';
 
 export type ListEntryRepository = Repository<ListEntryEntity>;
 
@@ -13,9 +15,9 @@ export class ListEntryEntity {
   @Column('int')
   listId: number;
 
-  @Index()
-  @Column('int')
-  eventId: number;
+  @ManyToOne(() => ArmyListEntity, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'listId' })
+  list: ArmyListEntity;
 
   @Column('int')
   position: number;
@@ -28,11 +30,19 @@ export class ListEntryEntity {
   baseName: string;
 
   @Column('int', { nullable: true })
-  points?: number | null;
+  points: number | null;
 
   @Column('int')
   depth: number;
 
   @Column('varchar', { length: 20 })
   kind: ListEntryKind;
+
+  @Index()
+  @Column('int', { nullable: true })
+  modelId: number | null;
+
+  @ManyToOne(() => ModelEntity, { onDelete: 'RESTRICT', nullable: true })
+  @JoinColumn({ name: 'modelId' })
+  model: ModelEntity | null;
 }

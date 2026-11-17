@@ -1,9 +1,10 @@
 import { ApiProperty, IntersectionType } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import { IsEnum, IsInt, IsOptional, IsString } from 'class-validator';
-import { GameResult, ListEntryKind } from 'src/domain/database';
+import { GameResult, ListEntryKind, ModelType } from 'src/domain/database';
 import { CasterOption, ListDetails, ListEntry, ListGame, ListSortField, ListSummary } from 'src/domain/lists';
 import { DateRangeQueryDto, PageQueryDto, SearchQueryDto, toArray, toEnumObject } from '../shared';
+import { MODEL_TYPES } from '../statistics/dtos';
 
 const LIST_ENTRY_KINDS: ListEntryKind[] = ['leader', 'model', 'module'];
 const GAME_RESULTS: GameResult[] = ['win', 'loss', 'draw'];
@@ -80,8 +81,8 @@ export class ListSummaryDto {
   @ApiProperty({ description: 'The parent faction.', required: true, nullable: true, type: String })
   faction: string | null;
 
-  @ApiProperty({ description: 'The army.', required: true, nullable: true, type: String })
-  army: string | null;
+  @ApiProperty({ description: 'The army.', required: true })
+  army: string;
 
   @ApiProperty({ description: 'The caster.', required: true, nullable: true, type: String })
   caster: string | null;
@@ -157,9 +158,24 @@ export class ListEntryDto {
   @ApiProperty({ description: 'The kind of entry.', required: true, enum: LIST_ENTRY_KINDS, enumName: 'ListEntryKind' })
   kind: ListEntryKind;
 
-  static fromDomain({ name, points, depth, kind }: ListEntry) {
+  @ApiProperty({ description: 'The name of the matched model in the wiki.', required: true, nullable: true, type: String })
+  modelName: string | null;
+
+  @ApiProperty({
+    description: 'The type of the matched model.',
+    required: true,
+    nullable: true,
+    enum: MODEL_TYPES,
+    enumName: 'ModelType',
+  })
+  modelType: ModelType | null;
+
+  @ApiProperty({ description: 'The page of the matched model in the wiki.', required: true, nullable: true, type: String })
+  wikiPage: string | null;
+
+  static fromDomain({ name, points, depth, kind, modelName, modelType, wikiPage }: ListEntry) {
     const result = new ListEntryDto();
-    Object.assign(result, { name, points, depth, kind });
+    Object.assign(result, { name, points, depth, kind, modelName, modelType, wikiPage });
     return result;
   }
 }
@@ -248,8 +264,8 @@ export class CasterOptionDto {
   @ApiProperty({ description: 'The caster.', required: true })
   caster: string;
 
-  @ApiProperty({ description: 'The army.', required: true, nullable: true, type: String })
-  army: string | null;
+  @ApiProperty({ description: 'The army.', required: true })
+  army: string;
 
   @ApiProperty({ description: 'The number of lists with this caster.', required: true })
   lists: number;

@@ -13,7 +13,8 @@
     "dev:frontend": "npm --prefix frontend run dev",
     "install:all": "npm install && npm --prefix backend install && npm --prefix frontend install && npm run generate",
     "generate": "npm --prefix frontend run generate",
-    "crawl": "npm --prefix backend run crawl --"
+    "crawl": "npm --prefix backend run crawl --",
+    "prune": "npm --prefix backend run prune"
   },
   "devDependencies": {
     "concurrently": "^10.0.3",

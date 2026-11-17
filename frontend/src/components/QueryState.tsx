@@ -1,3 +1,4 @@
+import { Alert, Spinner } from '@heroui/react';
 import { ReactNode } from 'react';
 
 export interface QueryStateProps {
@@ -12,24 +13,31 @@ export function QueryState({ isLoading, error, isEmpty, emptyText, children }: Q
   if (isLoading) {
     return (
       <div className="flex justify-center p-8">
-        <span className="loading loading-spinner loading-lg"></span>
+        <Spinner size="lg" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div role="alert" className="alert alert-error">
-        <span>Failed to load data: {error instanceof Error ? error.message : String(error)}</span>
-      </div>
+      <Alert status="danger">
+        <Alert.Indicator />
+        <Alert.Content>
+          <Alert.Title>Failed to load data</Alert.Title>
+          <Alert.Description>{error instanceof Error ? error.message : String(error)}</Alert.Description>
+        </Alert.Content>
+      </Alert>
     );
   }
 
   if (isEmpty) {
     return (
-      <div role="alert" className="alert">
-        <span>{emptyText ?? 'No data yet. Run the crawler to import events.'}</span>
-      </div>
+      <Alert>
+        <Alert.Indicator />
+        <Alert.Content>
+          <Alert.Title>{emptyText ?? 'No data yet. Run the crawler to import events.'}</Alert.Title>
+        </Alert.Content>
+      </Alert>
     );
   }
 

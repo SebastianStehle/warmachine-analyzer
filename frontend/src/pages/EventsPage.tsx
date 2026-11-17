@@ -1,7 +1,8 @@
+import { Table } from '@heroui/react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { EventSortField, SortOrder, useClients } from 'src/api';
-import { EventLink, PageHeader, Pagination, QueryState, SearchInput, SortHeader } from 'src/components';
+import { EventLink, PageHeader, Pagination, QueryState, SearchInput, SortableColumn } from 'src/components';
 import { useDateRange } from 'src/lib/date-range';
 import { useServerSort } from 'src/lib/sorting';
 
@@ -9,17 +10,19 @@ const PAGE_SIZE = 50;
 
 export function EventsPage() {
   const clients = useClients();
-  const navigate = useNavigate();
   const { from, to } = useDateRange();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { sort, toggle } = useServerSort<EventSortField>({ key: 'date', order: 'desc' }, ['name']);
+  const { sort, order, sortDescriptor, onSortChange } = useServerSort<EventSortField>(
+    { column: 'date', direction: 'descending' },
+    ['name'],
+  );
 
   const search = searchParams.get('search') ?? '';
   const page = Number(searchParams.get('page') ?? 0);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['events', from, to, search, sort, page],
-    queryFn: () => clients.events.getEvents(from, to, page, PAGE_SIZE, search || undefined, sort.order as SortOrder, sort.key),
+    queryKey: ['events', from, to, search, sort, order, page],
+    queryFn: () => clients.events.getEvents(from, to, page, PAGE_SIZE, search || undefined, order as SortOrder, sort),
     placeholderData: keepPreviousData,
   });
 
@@ -50,45 +53,39 @@ export function EventsPage() {
       <QueryState isLoading={isLoading} error={error} isEmpty={data?.total === 0}>
         {data && (
           <>
-            <div className="panel overflow-x-auto">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <SortHeader sortKey="date" sort={sort} onSort={toggle}>
-                      Date
-                    </SortHeader>
-                    <SortHeader sortKey="name" sort={sort} onSort={toggle}>
+            <Table>
+              <Table.ScrollContainer>
+                <Table.Content aria-label="Events" sortDescriptor={sortDescriptor} onSortChange={onSortChange}>
+                  <Table.Header>
+                    <SortableColumn id="date">Date</SortableColumn>
+                    <SortableColumn id="name" isRowHeader>
                       Event
-                    </SortHeader>
-                    <th>Type</th>
-                    <SortHeader sortKey="players" sort={sort} onSort={toggle}>
-                      Players
-                    </SortHeader>
-                    <SortHeader sortKey="rounds" sort={sort} onSort={toggle}>
-                      Rounds
-                    </SortHeader>
-                    <th>Lists</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.items.map(({ id, date, name, location, type, playerCount, rounds, lists }) => (
-                    <tr key={id} className="hover:bg-base-200 cursor-pointer" onClick={() => navigate(`/events/${id}`)}>
-                      <td className="whitespace-nowrap">{date}</td>
-                      <td>
-                        <EventLink id={id}>
-                          <span className="font-semibold">{name}</span>
-                        </EventLink>
-                        {location && <div className="text-base-content/80 text-xs">{location}</div>}
-                      </td>
-                      <td>{type ?? '–'}</td>
-                      <td>{playerCount}</td>
-                      <td>{rounds}</td>
-                      <td>{lists}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                    </SortableColumn>
+                    <Table.Column>Type</Table.Column>
+                    <SortableColumn id="players">Players</SortableColumn>
+                    <SortableColumn id="rounds">Rounds</SortableColumn>
+                    <Table.Column>Lists</Table.Column>
+                  </Table.Header>
+                  <Table.Body>
+                    {data.items.map(({ id, date, name, location, type, playerCount, rounds, lists }) => (
+                      <Table.Row key={id} id={id} href={`/events/${id}`} className="cursor-pointer">
+                        <Table.Cell className="whitespace-nowrap">{date}</Table.Cell>
+                        <Table.Cell>
+                          <EventLink id={id}>
+                            <span className="font-semibold">{name}</span>
+                          </EventLink>
+                          {location && <div className="text-muted text-xs">{location}</div>}
+                        </Table.Cell>
+                        <Table.Cell>{type ?? '–'}</Table.Cell>
+                        <Table.Cell>{playerCount}</Table.Cell>
+                        <Table.Cell>{rounds}</Table.Cell>
+                        <Table.Cell>{lists}</Table.Cell>
+                      </Table.Row>
+                    ))}
+                  </Table.Body>
+                </Table.Content>
+              </Table.ScrollContainer>
+            </Table>
 
             <Pagination page={page} pageSize={PAGE_SIZE} total={data.total} onChange={(next) => setParam('page', String(next))} />
           </>

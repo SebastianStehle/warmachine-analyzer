@@ -1,8 +1,9 @@
+import { Table } from '@heroui/react';
 import { useQuery } from '@tanstack/react-query';
+import classNames from 'classnames';
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { FactionStatsDto, useClients } from 'src/api';
-import { ArmyLink, PageHeader, QueryState, SearchInput, Share, SortHeader, StatTile, WinRate } from 'src/components';
+import { ArmyLink, PageHeader, QueryState, SearchInput, Share, SortableColumn, StatTile, WinRate } from 'src/components';
 import { useDateRange } from 'src/lib/date-range';
 import { matchesSearch, useClientSort } from 'src/lib/sorting';
 
@@ -18,7 +19,6 @@ const SORT_ACCESSORS = {
 
 export function FactionsPage() {
   const clients = useClients();
-  const navigate = useNavigate();
   const { from, to } = useDateRange();
   const [search, setSearch] = useState('');
 
@@ -29,7 +29,10 @@ export function FactionsPage() {
 
   const items = data?.items ?? [];
   const filtered = items.filter(({ army, faction }) => matchesSearch(search, army, faction));
-  const { sorted, sort, toggle } = useClientSort(filtered, SORT_ACCESSORS, { key: 'players', order: 'desc' });
+  const { sorted, sortDescriptor, onSortChange } = useClientSort(filtered, SORT_ACCESSORS, {
+    column: 'players',
+    direction: 'descending',
+  });
 
   let totalPlayers = 0;
   let totalLists = 0;
@@ -58,60 +61,49 @@ export function FactionsPage() {
           <StatTile label="Games" value={Math.round(totalGames)} />
         </div>
 
-        <div className="panel overflow-x-auto">
-          <table className="table">
-            <thead>
-              <tr>
-                <SortHeader sortKey="army" sort={sort} onSort={toggle}>
+        <Table>
+          <Table.ScrollContainer>
+            <Table.Content aria-label="Armies" sortDescriptor={sortDescriptor} onSortChange={onSortChange}>
+              <Table.Header>
+                <SortableColumn id="army" isRowHeader>
                   Army
-                </SortHeader>
-                <SortHeader sortKey="faction" sort={sort} onSort={toggle}>
-                  Faction
-                </SortHeader>
-                <SortHeader sortKey="players" sort={sort} onSort={toggle}>
-                  Share of players
-                </SortHeader>
-                <SortHeader sortKey="lists" sort={sort} onSort={toggle}>
-                  Lists
-                </SortHeader>
-                <SortHeader sortKey="winRate" sort={sort} onSort={toggle}>
-                  Win rate
-                </SortHeader>
-                <SortHeader sortKey="games" sort={sort} onSort={toggle}>
-                  W / L / D
-                </SortHeader>
-                <SortHeader sortKey="mirrors" sort={sort} onSort={toggle}>
-                  Mirrors
-                </SortHeader>
-              </tr>
-            </thead>
-            <tbody>
-              {sorted.map(({ army, faction, players, lists, games, wins, losses, draws, winRate, mirrors }) => (
-                <tr
-                  key={army}
-                  className="hover:bg-base-200 cursor-pointer"
-                  onClick={() => navigate(`/factions/${encodeURIComponent(army)}`)}
-                >
-                  <td className="font-semibold">
-                    <ArmyLink army={army} faction={faction} />
-                  </td>
-                  <td>{faction ?? '–'}</td>
-                  <td>
-                    <Share part={players} total={totalPlayers} />
-                  </td>
-                  <td>{lists}</td>
-                  <td>
-                    <WinRate winRate={winRate} games={games} />
-                  </td>
-                  <td className="whitespace-nowrap">
-                    {wins} / {losses} / {draws}
-                  </td>
-                  <td>{mirrors}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                </SortableColumn>
+                <SortableColumn id="faction">Faction</SortableColumn>
+                <SortableColumn id="players">Share of players</SortableColumn>
+                <SortableColumn id="lists">Lists</SortableColumn>
+                <SortableColumn id="winRate">Win rate</SortableColumn>
+                <SortableColumn id="games">W / L / D</SortableColumn>
+                <SortableColumn id="mirrors">Mirrors</SortableColumn>
+              </Table.Header>
+              <Table.Body>
+                {sorted.map(({ army, faction, players, lists, games, wins, losses, draws, winRate, mirrors }) => (
+                  <Table.Row
+                    key={army}
+                    id={army}
+                    href={`/factions/${encodeURIComponent(army)}`}
+                    className={classNames('cursor-pointer', { 'opacity-60': players === 0 && lists === 0 })}
+                  >
+                    <Table.Cell className="font-semibold">
+                      <ArmyLink army={army} faction={faction} />
+                    </Table.Cell>
+                    <Table.Cell>{faction ?? '–'}</Table.Cell>
+                    <Table.Cell>
+                      <Share part={players} total={totalPlayers} />
+                    </Table.Cell>
+                    <Table.Cell>{lists}</Table.Cell>
+                    <Table.Cell>
+                      <WinRate winRate={winRate} games={games} />
+                    </Table.Cell>
+                    <Table.Cell className="whitespace-nowrap">
+                      {wins} / {losses} / {draws}
+                    </Table.Cell>
+                    <Table.Cell>{mirrors}</Table.Cell>
+                  </Table.Row>
+                ))}
+              </Table.Body>
+            </Table.Content>
+          </Table.ScrollContainer>
+        </Table>
       </QueryState>
     </>
   );

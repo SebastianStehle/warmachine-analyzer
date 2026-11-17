@@ -2,7 +2,7 @@ import { NotFoundException } from '@nestjs/common';
 import { IQueryHandler, Query, QueryHandler } from '@nestjs/cqrs';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
-import { ArmyListEntity, EventEntity, ParticipantEntity, PlayerEntity } from 'src/domain/database';
+import { ArmyEntity, ArmyListEntity, EventEntity, FactionEntity, ParticipantEntity, PlayerEntity } from 'src/domain/database';
 import { toWinRate } from './get-players';
 
 export interface PlayerList {
@@ -71,13 +71,15 @@ export class GetPlayerHandler implements IQueryHandler<GetPlayerQuery, GetPlayer
       .getRepository(ParticipantEntity)
       .createQueryBuilder('p')
       .innerJoin(EventEntity, 'e', 'e.id = p.eventId')
+      .leftJoin(ArmyEntity, 'a', 'a.id = p.armyId')
+      .leftJoin(FactionEntity, 'f', 'f.id = a.factionId')
       .select('p.eventId', 'eventId')
       .addSelect('e.name', 'eventName')
       .addSelect('e.date', 'eventDate')
       .addSelect('e.playerCount', 'eventPlayers')
       .addSelect('p.rank', 'rank')
-      .addSelect('p.army', 'army')
-      .addSelect('p.faction', 'faction')
+      .addSelect('a.name', 'army')
+      .addSelect('f.name', 'faction')
       .addSelect('p.tournamentPoints', 'tournamentPoints')
       .addSelect('p.wins', 'wins')
       .addSelect('p.losses', 'losses')
@@ -87,14 +89,14 @@ export class GetPlayerHandler implements IQueryHandler<GetPlayerQuery, GetPlayer
 
     const lists = await this.dataSource.getRepository(ArmyListEntity).find({
       where: { playerId },
-      select: { id: true, eventId: true, caster: true },
+      relations: { caster: true },
       order: { id: 'ASC' },
     });
 
     const listsByEvent = new Map<number, PlayerList[]>();
     for (const { id, eventId, caster } of lists) {
       const eventLists = listsByEvent.get(eventId) ?? [];
-      eventLists.push({ id, caster: caster ?? null });
+      eventLists.push({ id, caster: caster?.name ?? null });
       listsByEvent.set(eventId, eventLists);
     }
 

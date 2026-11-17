@@ -4,6 +4,7 @@ import { CqrsModule } from '@nestjs/cqrs';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import * as Joi from 'joi';
 import { LONGSHANKS_ENV_SCHEMA, longshanksConfig } from '../longshanks/config';
+import { WIKI_ENV_SCHEMA, wikiConfig } from '../wiki/config';
 import { DB_ENV_SCHEMA, DbConfig, dbConfig } from './config';
 import { ALL_ENTITIES } from './entities';
 import { ALL_MIGRATIONS } from './migrations';
@@ -20,9 +21,9 @@ const combineSchemas = (...schemas: Joi.ObjectSchema[]) => {
 @Module({
   imports: [
     ConfigModule.forRoot({
-      load: [dbConfig, longshanksConfig],
+      load: [dbConfig, longshanksConfig, wikiConfig],
       isGlobal: true,
-      validationSchema: combineSchemas(DB_ENV_SCHEMA, LONGSHANKS_ENV_SCHEMA),
+      validationSchema: combineSchemas(DB_ENV_SCHEMA, LONGSHANKS_ENV_SCHEMA, WIKI_ENV_SCHEMA),
     }),
     CqrsModule.forRoot(),
     TypeOrmModule.forRootAsync({

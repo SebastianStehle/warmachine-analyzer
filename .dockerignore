@@ -1,0 +1,10 @@
+**/node_modules
+**/dist
+**/.git
+**/*.tsbuildinfo
+
+# Local secrets must never end up in an image. Without .env the frontend calls the API on its own origin.
+**/.env
+
+# The API client is generated inside the build, local copies may be outdated.
+frontend/src/api/generated

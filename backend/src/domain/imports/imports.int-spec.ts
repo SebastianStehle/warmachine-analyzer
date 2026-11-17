@@ -1,11 +1,17 @@
-import { readFileSync } from 'fs';
+import { mkdtempSync, readFileSync } from 'fs';
+import { tmpdir } from 'os';
 import { join } from 'path';
 import { createIntegrationTest, IntegrationTestContext } from 'test/integration/setup/harness';
+import { DataSource } from 'typeorm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { GetListQuery, GetListsQuery, ListsModule } from 'src/domain/lists';
+import { readCatalog } from 'src/domain/catalog';
+import { ArmyEntity, ArmyListEntity } from 'src/domain/database';
+import { GetCastersQuery, GetListQuery, GetListsQuery, ListsModule } from 'src/domain/lists';
 import { LongshanksClient } from 'src/domain/longshanks';
 import { GetFactionDetailsQuery, GetFactionStatsQuery, StatisticsModule } from 'src/domain/statistics';
-import { ImportEvent, ImportsModule } from './index';
+import { WikiClient } from 'src/domain/wiki';
+import { CatalogSeeder } from './catalog-seeder';
+import { ImportEvent, ImportsModule, UpdateCatalog } from './index';
 
 const EVENT_ID = 38573;
 
@@ -20,9 +26,16 @@ const PAGES: Record<string, string> = {
   [`/admin/players/pop_info.php?player=59733&event=${EVENT_ID}&tab=list`]: fixture('player-lists.html'),
 };
 
+const WIKI_INDEXES: Record<string, string> = {
+  'Template:Dusk Fane of Nyrro Footer': fixture('wiki/dusk-fane-of-nyrro-footer.html'),
+  'Template:Dusk House Kallyss Footer': fixture('wiki/dusk-house-kallyss-footer.html'),
+  'Template:Southern Kriels Kithguard Footer': fixture('wiki/southern-kriels-kithguard-footer.html'),
+};
+
 describe('Imports', () => {
   let context: IntegrationTestContext;
   let listIdsAfterFirstImport: number[];
+  const catalogFile = join(mkdtempSync(join(tmpdir(), 'catalog-')), 'catalog.json');
 
   const loadListIds = async () => {
     const { items } = await context.queryBus.execute(new GetListsQuery({ page: 0, pageSize: 10 }));
@@ -39,9 +52,26 @@ describe('Imports', () => {
       },
     };
 
+    const wikiClient = {
+      getTemplates: () =>
+        Promise.resolve(JSON.stringify({ query: { allpages: Object.keys(WIKI_INDEXES).map((title) => ({ title })) } })),
+      getRenderedPage: (title: string) =>
+        Promise.resolve(JSON.stringify({ parse: { title, text: { '*': WIKI_INDEXES[title] } } })),
+    };
+
     context = await createIntegrationTest({ imports: [ImportsModule, ListsModule, StatisticsModule] }, (builder) =>
-      builder.overrideProvider(LongshanksClient).useValue(client),
+      builder
+        .overrideProvider(LongshanksClient)
+        .useValue(client)
+        .overrideProvider(WikiClient)
+        .useValue(wikiClient)
+        .overrideProvider(CatalogSeeder)
+        .useValue({}),
     );
+
+    await context.commandBus.execute(new UpdateCatalog(catalogFile));
+    // Updating the catalog twice must update the models instead of duplicating them.
+    await context.commandBus.execute(new UpdateCatalog(catalogFile));
 
     await context.commandBus.execute(new ImportEvent(EVENT_ID));
     listIdsAfterFirstImport = await loadListIds();
@@ -52,6 +82,26 @@ describe('Imports', () => {
 
   afterAll(() => context.close());
 
+  it('should write the catalog file when the catalog is updated', () => {
+    const { armies, models } = readCatalog(catalogFile);
+
+    expect(armies.map(({ name, faction }) => ({ name, faction }))).toEqual([
+      { name: 'Fane of Nyrro', faction: 'Dusk' },
+      { name: 'House Kallyss', faction: 'Dusk' },
+      { name: 'Kithguard', faction: 'Southern Kriels' },
+    ]);
+    expect(models.find(({ name }) => name === 'Ghast')).toMatchObject({ type: 'warjack' });
+  });
+
+  it('should link every list to the army of the catalog when an event is imported', async () => {
+    const dataSource = context.app.get(DataSource);
+    const { id } = await dataSource.getRepository(ArmyEntity).findOneByOrFail({ name: 'House Kallyss' });
+    const lists = await dataSource.getRepository(ArmyListEntity).find();
+
+    expect(lists.length).toBeGreaterThan(0);
+    expect(lists.map(({ armyId }) => armyId)).toEqual(lists.map(() => id));
+  });
+
   it('should calculate faction stats when an event is imported', async () => {
     const { factions } = await context.queryBus.execute(new GetFactionStatsQuery({}));
 
@@ -59,9 +109,29 @@ describe('Imports', () => {
       factions.map(({ army, players, lists, games, wins, winRate }) => ({ army, players, lists, games, wins, winRate })),
     ).toEqual([
       { army: 'House Kallyss', players: 1, lists: 2, games: 1, wins: 1, winRate: 1 },
-      { army: 'Thornfall Alliance', players: 1, lists: 2, games: 0, wins: 0, winRate: null },
       { army: 'Fane of Nyrro', players: 1, lists: 0, games: 1, wins: 0, winRate: 0 },
+      { army: 'Kithguard', players: 0, lists: 0, games: 0, wins: 0, winRate: null },
     ]);
+  });
+
+  it('should offer the leaders of the catalog as casters when they were never played', async () => {
+    const { casters } = await context.queryBus.execute(new GetCastersQuery(['Fane of Nyrro'], {}));
+
+    expect(casters.map(({ caster, lists }) => [caster, lists])).toEqual([
+      ['Ashmael, Keeper of Whispers', 0],
+      ['Auricant Vorsalys', 0],
+      ['Harasheth, The Gorged Darkness', 0],
+      ['Hysene, the Executioner', 0],
+      ['Nymara, The Shadowblade', 0],
+    ]);
+  });
+
+  // The wiki fixtures have no index for Thornfall Alliance.
+  it('should ignore armies that are not in the wiki when an event is imported', async () => {
+    const { items, total } = await context.queryBus.execute(new GetListsQuery({ page: 0, pageSize: 10 }));
+
+    expect(total).toEqual(2);
+    expect(new Set(items.map(({ army }) => army))).toEqual(new Set(['House Kallyss']));
   });
 
   it('should keep list IDs when an event is imported again', async () => {
@@ -75,6 +145,9 @@ describe('Imports', () => {
     expect(details.casters.map(({ caster, lists, games }) => [caster, lists, games])).toEqual([
       ['Hellyth, Scyir of Nightfall', 1, 1],
       ['Morayne, The Blade of Twilight', 1, 0],
+      ['Hazaroth, Narcissar of Ruin', 0, 0],
+      ['Scyrafael, Nis-Issyr of Desolations', 0, 0],
+      ['Tyrus, Nis-Arsyr of Spiders', 0, 0],
     ]);
     expect(details.units.find(({ name }) => name === 'Dreadguard Archers')).toMatchObject({
       lists: 2,
@@ -82,7 +155,13 @@ describe('Imports', () => {
       games: 1,
       wins: 1,
     });
-    expect(details.units.find(({ name }) => name === 'Ghast')).toMatchObject({ lists: 1, copies: 2, games: 0 });
+    expect(details.units.find(({ name }) => name === 'Ghast')).toMatchObject({ type: 'warjack', lists: 1, copies: 2, games: 0 });
+    expect(details.units.find(({ name }) => name === 'Eidolon')).toMatchObject({
+      type: 'warjack',
+      lists: 0,
+      wikiPage: 'Eidolon',
+    });
+    expect(details.units.find(({ name }) => name === 'Dreadguard Archers')?.type).toEqual('unit');
     expect(details.matchups).toEqual([{ opponent: 'Fane of Nyrro', games: 1, wins: 1, losses: 0, draws: 0, winRate: 1 }]);
   });
 
@@ -100,7 +179,15 @@ describe('Imports', () => {
 
     const { list } = await context.queryBus.execute(new GetListQuery(items[0].id));
 
-    expect(list.entries[0]).toEqual({ name: 'Hellyth, Scyir of Nightfall', points: null, depth: 0, kind: 'leader' });
+    expect(list.entries[0]).toEqual({
+      name: 'Hellyth, Scyir of Nightfall',
+      points: null,
+      depth: 0,
+      kind: 'leader',
+      modelName: 'Hellyth, Scyir of Nightfall',
+      modelType: 'leader',
+      wikiPage: 'Hellyth, Scyir of Nightfall',
+    });
     expect(list.playedGames).toEqual([
       {
         round: 1,

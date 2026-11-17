@@ -1,5 +1,17 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { ModelType } from 'src/domain/database';
 import { CasterStats, FactionDetails, FactionStats, MatchupStats, UnitStats } from 'src/domain/statistics';
+
+export const MODEL_TYPES: ModelType[] = [
+  'leader',
+  'warjack',
+  'warbeast',
+  'battle-engine',
+  'solo',
+  'unit',
+  'attachment',
+  'structure',
+];
 import { RecordDto } from '../shared';
 
 export class FactionStatsDto extends RecordDto {
@@ -67,6 +79,14 @@ export class CasterStatsDto extends RecordDto {
   caster: string;
 
   @ApiProperty({
+    description: 'The page of the caster in the wiki.',
+    required: true,
+    nullable: true,
+    type: String,
+  })
+  wikiPage: string | null;
+
+  @ApiProperty({
     description: 'The number of lists with this caster.',
     required: true,
   })
@@ -74,8 +94,8 @@ export class CasterStatsDto extends RecordDto {
 
   static fromDomain(source: CasterStats) {
     const result = new CasterStatsDto();
-    const { caster, lists } = source;
-    Object.assign(result, { caster, lists });
+    const { caster, wikiPage, lists } = source;
+    Object.assign(result, { caster, wikiPage, lists });
     RecordDto.assignRecord(result, source);
     return result;
   }
@@ -87,6 +107,23 @@ export class UnitStatsDto extends RecordDto {
     required: true,
   })
   name: string;
+
+  @ApiProperty({
+    description: 'The type from the wiki, null when the model is not in the wiki.',
+    required: true,
+    nullable: true,
+    enum: MODEL_TYPES,
+    enumName: 'ModelType',
+  })
+  type: ModelType | null;
+
+  @ApiProperty({
+    description: 'The page of the model in the wiki.',
+    required: true,
+    nullable: true,
+    type: String,
+  })
+  wikiPage: string | null;
 
   @ApiProperty({
     description: 'The number of lists containing it.',
@@ -110,8 +147,8 @@ export class UnitStatsDto extends RecordDto {
 
   static fromDomain(source: UnitStats) {
     const result = new UnitStatsDto();
-    const { name, lists, copies, averagePoints } = source;
-    Object.assign(result, { name, lists, copies, averagePoints });
+    const { name, type, wikiPage, lists, copies, averagePoints } = source;
+    Object.assign(result, { name, type, wikiPage, lists, copies, averagePoints });
     RecordDto.assignRecord(result, source);
     return result;
   }

@@ -1,5 +1,5 @@
-import { ObjectLiteral, SelectQueryBuilder } from 'typeorm';
-import { GameResult } from 'src/domain/database';
+import { DataSource, ObjectLiteral, SelectQueryBuilder } from 'typeorm';
+import { ArmyEntity, GameResult } from 'src/domain/database';
 import { DateRange, GameRecord } from './interfaces';
 
 export function applyDateRange<T extends ObjectLiteral>(
@@ -16,6 +16,13 @@ export function applyDateRange<T extends ObjectLiteral>(
   }
 
   return query;
+}
+
+export interface RecordRow {
+  games: string;
+  wins: string;
+  losses: string;
+  draws: string;
 }
 
 export function selectRecord<T extends ObjectLiteral>(query: SelectQueryBuilder<T>, alias: string) {
@@ -58,3 +65,8 @@ export class RecordCounter {
 
 export const byGamesDescending = (a: { games: number; lists?: number }, b: { games: number; lists?: number }) =>
   (b.lists ?? 0) - (a.lists ?? 0) || b.games - a.games;
+
+export async function loadArmyNames(dataSource: DataSource) {
+  const armies = await dataSource.getRepository(ArmyEntity).find({ relations: { faction: true } });
+  return new Map(armies.map(({ id, name, faction }) => [id, { name, faction: faction?.name ?? null }]));
+}

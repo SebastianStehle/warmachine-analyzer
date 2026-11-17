@@ -1,5 +1,6 @@
+import { Button, Table } from '@heroui/react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { ListSortField, SortOrder, useClients } from 'src/api';
 import {
   ArmyLink,
@@ -10,7 +11,7 @@ import {
   PlayerLink,
   QueryState,
   SearchInput,
-  SortHeader,
+  SortableColumn,
 } from 'src/components';
 import { useDateRange } from 'src/lib/date-range';
 import { useServerSort } from 'src/lib/sorting';
@@ -27,10 +28,12 @@ const FILTER_LABELS: Partial<Record<FilterKey, string>> = {
 
 export function ListsPage() {
   const clients = useClients();
-  const navigate = useNavigate();
   const { from, to } = useDateRange();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { sort, toggle } = useServerSort<ListSortField>({ key: 'date', order: 'desc' }, ['event', 'player', 'army', 'caster']);
+  const { sort, order, sortDescriptor, onSortChange } = useServerSort<ListSortField>(
+    { column: 'date', direction: 'descending' },
+    ['event', 'player', 'army', 'caster'],
+  );
 
   const armies = searchParams.getAll('army');
   const casters = searchParams.getAll('caster');
@@ -51,7 +54,7 @@ export function ListsPage() {
   });
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['lists', from, to, armies, casters, unit, playerId, eventId, search, sort, page],
+    queryKey: ['lists', from, to, armies, casters, unit, playerId, eventId, search, sort, order, page],
     queryFn: () =>
       clients.lists.getLists(
         from,
@@ -59,8 +62,8 @@ export function ListsPage() {
         page,
         PAGE_SIZE,
         search || undefined,
-        sort.order as SortOrder,
-        sort.key,
+        order as SortOrder,
+        sort,
         playerId,
         eventId,
         armies.length > 0 ? armies : undefined,
@@ -81,7 +84,10 @@ export function ListsPage() {
   };
 
   // A caster can be played in several armies, but should only be offered once.
-  const casterNames = [...new Set(casterOptions?.items.map(({ caster }) => caster) ?? [])];
+  const casterGroups = new Map<string, string[]>();
+  for (const { caster, army } of casterOptions?.items ?? []) {
+    casterGroups.set(army, [...(casterGroups.get(army) ?? []), caster]);
+  }
 
   const setFilter = (key: FilterKey, value?: string) => {
     const next = new URLSearchParams(searchParams);
@@ -131,7 +137,7 @@ export function ListsPage() {
         />
 
         <MultiSelect
-          options={casterNames}
+          options={[...casterGroups].map(([label, casters]) => ({ label, options: casters }))}
           selected={casters}
           placeholder="All casters"
           onChange={(selected) => setMultiFilter('caster', selected)}
@@ -140,70 +146,62 @@ export function ListsPage() {
         {(Object.keys(FILTER_LABELS) as FilterKey[])
           .filter((key) => searchParams.get(key))
           .map((key) => (
-            <button key={key} className="badge badge-primary gap-1" onClick={() => setFilter(key)}>
+            <Button key={key} size="sm" variant="secondary" onPress={() => setFilter(key)}>
               {FILTER_LABELS[key]}: {filterValue(key)} ✕
-            </button>
+            </Button>
           ))}
       </div>
 
       <QueryState isLoading={isLoading} error={error} isEmpty={data?.total === 0} emptyText="No lists match the filter.">
         {data && (
           <>
-            <div className="panel overflow-x-auto">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <SortHeader sortKey="date" sort={sort} onSort={toggle}>
-                      Date
-                    </SortHeader>
-                    <SortHeader sortKey="event" sort={sort} onSort={toggle}>
-                      Event
-                    </SortHeader>
-                    <SortHeader sortKey="player" sort={sort} onSort={toggle}>
+            <Table>
+              <Table.ScrollContainer>
+                <Table.Content aria-label="Lists" sortDescriptor={sortDescriptor} onSortChange={onSortChange}>
+                  <Table.Header>
+                    <SortableColumn id="date">Date</SortableColumn>
+                    <SortableColumn id="event">Event</SortableColumn>
+                    <SortableColumn id="player" isRowHeader>
                       Player
-                    </SortHeader>
-                    <SortHeader sortKey="rank" sort={sort} onSort={toggle}>
-                      Placing
-                    </SortHeader>
-                    <SortHeader sortKey="army" sort={sort} onSort={toggle}>
-                      Army
-                    </SortHeader>
-                    <SortHeader sortKey="caster" sort={sort} onSort={toggle}>
-                      Caster
-                    </SortHeader>
-                    <th>Played</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.items.map((list) => (
-                    <tr key={list.id} className="hover:bg-base-200 cursor-pointer" onClick={() => navigate(`/lists/${list.id}`)}>
-                      <td className="whitespace-nowrap">{list.eventDate}</td>
-                      <td>
-                        <EventLink id={list.eventId}>{list.eventName}</EventLink>{' '}
-                        <span className="text-base-content/70 text-xs">({list.eventPlayers} players)</span>
-                      </td>
-                      <td>
-                        <PlayerLink id={list.playerId}>{list.playerName}</PlayerLink>
-                      </td>
-                      <td className="whitespace-nowrap">
-                        {list.rank ?? '–'}
-                        {list.eventWins !== null && (
-                          <span className="text-base-content/70 text-xs">
-                            {' '}
-                            ({list.eventWins}-{list.eventLosses})
-                          </span>
-                        )}
-                      </td>
-                      <td>
-                        <ArmyLink army={list.army} faction={list.faction} />
-                      </td>
-                      <td className="font-semibold">{list.caster ?? '–'}</td>
-                      <td className="whitespace-nowrap">{list.games > 0 ? `${list.wins} of ${list.games} won` : '–'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                    </SortableColumn>
+                    <SortableColumn id="rank">Placing</SortableColumn>
+                    <SortableColumn id="army">Army</SortableColumn>
+                    <SortableColumn id="caster">Caster</SortableColumn>
+                    <Table.Column>Played</Table.Column>
+                  </Table.Header>
+                  <Table.Body>
+                    {data.items.map((list) => (
+                      <Table.Row key={list.id} id={list.id} href={`/lists/${list.id}`} className="cursor-pointer">
+                        <Table.Cell className="whitespace-nowrap">{list.eventDate}</Table.Cell>
+                        <Table.Cell>
+                          <EventLink id={list.eventId}>{list.eventName}</EventLink>{' '}
+                          <span className="text-muted text-xs">({list.eventPlayers} players)</span>
+                        </Table.Cell>
+                        <Table.Cell>
+                          <PlayerLink id={list.playerId}>{list.playerName}</PlayerLink>
+                        </Table.Cell>
+                        <Table.Cell className="whitespace-nowrap">
+                          {list.rank ?? '–'}
+                          {list.eventWins !== null && (
+                            <span className="text-muted text-xs">
+                              {' '}
+                              ({list.eventWins}-{list.eventLosses})
+                            </span>
+                          )}
+                        </Table.Cell>
+                        <Table.Cell>
+                          <ArmyLink army={list.army} faction={list.faction} />
+                        </Table.Cell>
+                        <Table.Cell className="font-semibold">{list.caster ?? '–'}</Table.Cell>
+                        <Table.Cell className="whitespace-nowrap">
+                          {list.games > 0 ? `${list.wins} of ${list.games} won` : '–'}
+                        </Table.Cell>
+                      </Table.Row>
+                    ))}
+                  </Table.Body>
+                </Table.Content>
+              </Table.ScrollContainer>
+            </Table>
 
             <Pagination
               page={page}

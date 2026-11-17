@@ -3,10 +3,13 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { toSearchPattern, toSqlOrder } from 'src/domain/common/query';
 import {
+  ArmyEntity,
   ArmyListEntity,
   EventEntity,
+  FactionEntity,
   GamePlayerEntity,
   ListEntryEntity,
+  ModelEntity,
   ParticipantEntity,
   PlayerEntity,
 } from 'src/domain/database';
@@ -18,8 +21,8 @@ const SORT_COLUMNS: Record<ListSortField, string> = {
   event: 'e.name',
   player: 'pl.name',
   rank: 'p.rank',
-  army: 'l.army',
-  caster: 'l.caster',
+  army: 'a.name',
+  caster: 'c.name',
 };
 
 export class GetListsQuery extends Query<GetListsResult> {
@@ -39,7 +42,7 @@ export interface ListRow {
   id: number;
   title: string;
   faction: string | null;
-  army: string | null;
+  army: string;
   caster: string | null;
   totalPoints: number | null;
   eventId: number;
@@ -59,12 +62,15 @@ export function createListQuery(dataSource: DataSource) {
     .createQueryBuilder('l')
     .innerJoin(EventEntity, 'e', 'e.id = l.eventId')
     .innerJoin(PlayerEntity, 'pl', 'pl.id = l.playerId')
+    .innerJoin(ArmyEntity, 'a', 'a.id = l.armyId')
+    .leftJoin(FactionEntity, 'f', 'f.id = a.factionId')
+    .leftJoin(ModelEntity, 'c', 'c.id = l.casterId')
     .leftJoin(ParticipantEntity, 'p', 'p.eventId = l.eventId AND p.playerId = l.playerId')
     .select('l.id', 'id')
     .addSelect('l.title', 'title')
-    .addSelect('l.faction', 'faction')
-    .addSelect('l.army', 'army')
-    .addSelect('l.caster', 'caster')
+    .addSelect('f.name', 'faction')
+    .addSelect('a.name', 'army')
+    .addSelect('c.name', 'caster')
     .addSelect('l.totalPoints', 'totalPoints')
     .addSelect('e.id', 'eventId')
     .addSelect('e.name', 'eventName')
@@ -140,11 +146,11 @@ export class GetListsHandler implements IQueryHandler<GetListsQuery, GetListsRes
     const query = applyDateRange(createListQuery(this.dataSource), 'e', filter);
 
     if (army && army.length > 0) {
-      query.andWhere('l.army IN (:...army)', { army });
+      query.andWhere('a.name IN (:...army)', { army });
     }
 
     if (caster && caster.length > 0) {
-      query.andWhere('l.caster IN (:...caster)', { caster });
+      query.andWhere('c.name IN (:...caster)', { caster });
     }
 
     if (playerId) {
@@ -157,7 +163,7 @@ export class GetListsHandler implements IQueryHandler<GetListsQuery, GetListsRes
 
     if (search) {
       query.andWhere(
-        '(LOWER(l.title) LIKE :search OR LOWER(l.caster) LIKE :search OR LOWER(pl.name) LIKE :search OR LOWER(e.name) LIKE :search)',
+        '(LOWER(l.title) LIKE :search OR LOWER(c.name) LIKE :search OR LOWER(pl.name) LIKE :search OR LOWER(e.name) LIKE :search)',
         { search: toSearchPattern(search) },
       );
     }

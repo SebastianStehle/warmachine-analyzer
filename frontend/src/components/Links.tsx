@@ -6,7 +6,7 @@ import { factionColor } from 'src/lib/factions';
 const stopPropagation = (event: MouseEvent) => event.stopPropagation();
 
 const LINK_CLASS =
-  'underline decoration-base-content/30 underline-offset-4 transition-colors hover:text-primary hover:decoration-primary';
+  'underline decoration-foreground/30 underline-offset-4 transition-colors hover:text-accent hover:decoration-accent';
 
 export interface ArmyLinkProps {
   army: string | null | undefined;
@@ -20,7 +20,7 @@ export function ArmyLink({ army, faction }: ArmyLinkProps) {
 
   return (
     <Link
-      className="link link-hover inline-flex items-center gap-2 whitespace-nowrap"
+      className="hover:text-accent inline-flex items-center gap-2 whitespace-nowrap hover:underline"
       to={`/factions/${encodeURIComponent(army)}`}
       onClick={stopPropagation}
     >

@@ -14,10 +14,10 @@ export class EventEntity {
   date: string;
 
   @Column('varchar', { length: 300, nullable: true })
-  location?: string | null;
+  location: string | null;
 
   @Column('varchar', { length: 100, nullable: true })
-  type?: string | null;
+  type: string | null;
 
   @Column('int')
   playerCount: number;

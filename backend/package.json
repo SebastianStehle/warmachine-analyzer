@@ -12,6 +12,7 @@
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start:prod": "node dist/main",
     "crawl": "ts-node -r tsconfig-paths/register src/crawl.ts",
+    "prune": "ts-node -r tsconfig-paths/register src/prune.ts",
     "lint": "eslint \"{src,test}/**/*.ts\" --max-warnings 0",
     "lint:fix": "eslint \"{src,test}/**/*.ts\" --max-warnings 0 --fix",
     "typeorm": "ts-node -r tsconfig-paths/register ./node_modules/typeorm/cli",

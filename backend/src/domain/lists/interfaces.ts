@@ -1,5 +1,5 @@
 import { PageRequest, SortRequest } from 'src/domain/common/query';
-import { GameResult, ListEntryKind } from 'src/domain/database';
+import { GameResult, ListEntryKind, ModelType } from 'src/domain/database';
 
 export type ListSortField = 'date' | 'event' | 'player' | 'rank' | 'army' | 'caster';
 
@@ -18,7 +18,7 @@ export interface ListSummary {
   id: number;
   title: string;
   faction: string | null;
-  army: string | null;
+  army: string;
   caster: string | null;
   totalPoints: number | null;
   eventId: number;
@@ -39,6 +39,9 @@ export interface ListEntry {
   points: number | null;
   depth: number;
   kind: ListEntryKind;
+  modelName: string | null;
+  modelType: ModelType | null;
+  wikiPage: string | null;
 }
 
 export interface ListGame {
@@ -65,6 +68,6 @@ export interface ListDetails extends ListSummary {
 
 export interface CasterOption {
   caster: string;
-  army: string | null;
+  army: string;
   lists: number;
 }

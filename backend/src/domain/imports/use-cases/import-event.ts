@@ -1,7 +1,7 @@
 import { Logger } from '@nestjs/common';
 import { Command, CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { InjectDataSource } from '@nestjs/typeorm';
-import { DataSource, EntityManager } from 'typeorm';
+import { DataSource, EntityManager, In } from 'typeorm';
 import {
   ArmyListEntity,
   EventEntity,
@@ -11,6 +11,8 @@ import {
   ParticipantEntity,
   PlayerEntity,
 } from 'src/domain/database';
+import { loadModelMatcher } from 'src/domain/lists/catalog';
+import { CatalogArmy, matchListEntries, ModelMatcher } from 'src/domain/lists/model-matcher';
 import { isSameCaster, parseArmyLists, ParsedList } from 'src/domain/lists/parser';
 import {
   EventInfo,
@@ -43,6 +45,12 @@ export class ImportEventResult {
     public readonly lists = 0,
     public readonly games = 0,
   ) {}
+}
+
+interface StoredList {
+  id: number;
+  casterId: number | null;
+  casterName: string | null;
 }
 
 interface PlayerList {
@@ -98,12 +106,12 @@ export class ImportEventHandler implements ICommandHandler<ImportEvent, ImportEv
     const games = await this.loadGames(eventId, useCache);
     const lists = await this.loadLists(eventId, standings, useCache);
 
-    let listCount = 0;
-    for (const playerLists of lists.values()) {
-      listCount += playerLists.length;
+    const matcher = await loadModelMatcher(this.dataSource);
+    if (!matcher.hasArmies) {
+      throw new Error('The catalog is empty, run "npm run crawl -- --catalog" first.');
     }
 
-    await this.dataSource.transaction((manager) => this.save(manager, event, standings, games, lists));
+    const listCount = await this.dataSource.transaction((manager) => this.save(manager, matcher, event, standings, games, lists));
 
     this.logger.log(
       `Imported event ${eventId} (${event.name}): ${standings.length} players, ${listCount} lists, ${games.length} games.`,
@@ -169,6 +177,7 @@ export class ImportEventHandler implements ICommandHandler<ImportEvent, ImportEv
 
   private async save(
     manager: EntityManager,
+    matcher: ModelMatcher,
     event: EventInfo,
     standings: Standing[],
     games: ParsedGame[],
@@ -205,8 +214,11 @@ export class ImportEventHandler implements ICommandHandler<ImportEvent, ImportEv
       existingListIds.set(listKey(playerId, sourceId, sourceIndex), id);
     }
 
-    for (const entity of [GamePlayerEntity, GameEntity, ListEntryEntity, ParticipantEntity]) {
-      await manager.delete(entity, { eventId });
+    // Game players go with their games. Lists are updated in place, so only their entries are replaced.
+    await manager.delete(GameEntity, { eventId });
+    await manager.delete(ParticipantEntity, { eventId });
+    if (existingListIds.size > 0) {
+      await manager.delete(ListEntryEntity, { listId: In([...existingListIds.values()]) });
     }
 
     const players = new Map<number, string>();
@@ -225,18 +237,18 @@ export class ImportEventHandler implements ICommandHandler<ImportEvent, ImportEv
       [...players].map(([id, name]) => ({ id, name })),
     );
 
-    const storedLists = new Map<number, ArmyListEntity[]>();
+    const storedLists = new Map<number, StoredList[]>();
 
     for (const standing of standings) {
-      const { playerId, army } = standing;
-      const playerLists = lists.get(playerId) ?? [];
+      const { playerId } = standing;
+      // Longshanks is the source of truth for the army, the list header is free text.
+      const catalogArmy = matcher.findArmy(standing.army ?? lists.get(playerId)?.find(({ list }) => list.army)?.list.army);
 
       await manager.save(ParticipantEntity, {
         eventId,
         playerId,
         rank: standing.rank,
-        army,
-        faction: playerLists.find(({ list }) => list.faction)?.list.faction ?? null,
+        armyId: catalogArmy?.id ?? null,
         tournamentPoints: standing.tournamentPoints,
         wins: standing.wins,
         losses: standing.losses,
@@ -245,56 +257,15 @@ export class ImportEventHandler implements ICommandHandler<ImportEvent, ImportEv
         armyPoints: standing.armyPoints,
       });
 
-      const saved: ArmyListEntity[] = [];
-      for (const { sourceId, sourceIndex, list } of playerLists) {
-        const values = {
-          eventId,
-          playerId,
-          sourceId,
-          sourceIndex,
-          title: list.title,
-          faction: list.faction,
-          // Longshanks is the source of truth for the army, the list header is free text.
-          army: army ?? list.army,
-          caster: list.caster,
-          format: list.format,
-          pointLevel: list.pointLevel,
-          totalPoints: list.totalPoints,
-          commandCards: list.commandCards,
-          warnings: list.warnings,
-          rawText: list.rawText,
-        };
-
-        const key = listKey(playerId, sourceId, sourceIndex);
-        const existingId = existingListIds.get(key);
-
-        let entity: ArmyListEntity;
-        if (existingId) {
-          await manager.update(ArmyListEntity, existingId, values);
-          existingListIds.delete(key);
-          entity = { ...values, id: existingId } as ArmyListEntity;
-        } else {
-          entity = await manager.save(ArmyListEntity, values);
+      // Armies that are not in the wiki are ignored, so all statistics only contain armies of the catalog.
+      if (catalogArmy) {
+        const saved: StoredList[] = [];
+        for (const playerList of lists.get(playerId) ?? []) {
+          saved.push(await this.saveList(manager, matcher, eventId, playerId, catalogArmy, playerList, existingListIds));
         }
 
-        await manager.save(
-          ListEntryEntity,
-          list.entries.map(({ name, baseName, points, depth, kind }, position) => ({
-            listId: entity.id,
-            eventId,
-            position,
-            name,
-            baseName,
-            points,
-            depth,
-            kind,
-          })),
-        );
-
-        saved.push(entity);
+        storedLists.set(playerId, saved);
       }
-
-      storedLists.set(playerId, saved);
     }
 
     if (existingListIds.size > 0) {
@@ -322,30 +293,100 @@ export class ImportEventHandler implements ICommandHandler<ImportEvent, ImportEv
 
         await manager.save(GamePlayerEntity, {
           gameId: game.id,
-          eventId,
           playerId: side.playerId,
           opponentId: game.isBye ? null : (opponent?.playerId ?? null),
-          army: side.army,
-          opponentArmy: game.isBye ? null : (opponent?.army ?? null),
-          caster: side.caster,
-          opponentCaster: game.isBye ? null : (opponent?.caster ?? null),
-          listId: this.findPlayedList(side, storedLists.get(side.playerId) ?? [])?.id ?? null,
+          armyId: matcher.findArmy(side.army)?.id ?? null,
+          opponentArmyId: game.isBye ? null : (matcher.findArmy(opponent?.army)?.id ?? null),
+          casterId: this.findLeaderId(matcher, side),
+          opponentCasterId: game.isBye || !opponent ? null : this.findLeaderId(matcher, opponent),
+          listId: this.findPlayedList(matcher, side, storedLists.get(side.playerId) ?? [])?.id ?? null,
           result: side.result,
           controlPoints: side.controlPoints,
           armyPoints: side.armyPoints,
         });
       }
     }
-  }
 
-  private findPlayedList({ caster }: GameSide, candidates: ArmyListEntity[]) {
-    if (caster) {
-      const match = candidates.find((list) => list.caster && isSameCaster(list.caster, caster));
-      if (match) {
-        return match;
-      }
+    let listCount = 0;
+    for (const saved of storedLists.values()) {
+      listCount += saved.length;
     }
 
-    return candidates.length === 1 ? candidates[0] : null;
+    return listCount;
+  }
+
+  private async saveList(
+    manager: EntityManager,
+    matcher: ModelMatcher,
+    eventId: number,
+    playerId: number,
+    army: CatalogArmy,
+    { sourceId, sourceIndex, list }: PlayerList,
+    existingListIds: Map<string, number>,
+  ): Promise<StoredList> {
+    const { modelIds, casterId } = matchListEntries(list, matcher, army.name);
+
+    const values = {
+      eventId,
+      playerId,
+      sourceId,
+      sourceIndex,
+      title: list.title,
+      armyId: army.id,
+      casterId,
+      format: list.format,
+      pointLevel: list.pointLevel,
+      totalPoints: list.totalPoints,
+      commandCards: list.commandCards,
+      warnings: list.warnings,
+      rawText: list.rawText,
+    };
+
+    const key = listKey(playerId, sourceId, sourceIndex);
+
+    let id = existingListIds.get(key);
+    if (id) {
+      await manager.update(ArmyListEntity, id, values);
+      existingListIds.delete(key);
+    } else {
+      id = (await manager.insert(ArmyListEntity, values)).identifiers[0].id as number;
+    }
+
+    await manager.insert(
+      ListEntryEntity,
+      list.entries.map(({ name, baseName, points, depth, kind }, position) => ({
+        listId: id,
+        position,
+        name,
+        baseName,
+        points,
+        depth,
+        kind,
+        modelId: modelIds[position],
+      })),
+    );
+
+    return { id, casterId, casterName: list.caster };
+  }
+
+  private findLeaderId(matcher: ModelMatcher, { caster, army }: GameSide) {
+    if (!caster) {
+      return null;
+    }
+
+    const model = matcher.match(caster, matcher.findArmy(army)?.name);
+    return model?.type === 'leader' ? model.id : null;
+  }
+
+  // Longshanks spells leaders differently than the lists, so the names are compared loosely when the catalog does not know the leader.
+  private findPlayedList(matcher: ModelMatcher, side: GameSide, candidates: StoredList[]) {
+    const casterId = this.findLeaderId(matcher, side);
+    const match = candidates.find(
+      (list) =>
+        (casterId !== null && list.casterId === casterId) ||
+        (!!side.caster && !!list.casterName && isSameCaster(list.casterName, side.caster)),
+    );
+
+    return match ?? (candidates.length === 1 ? candidates[0] : null);
   }
 }

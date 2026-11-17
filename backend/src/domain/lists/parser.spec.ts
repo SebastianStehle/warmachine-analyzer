@@ -154,6 +154,36 @@ describe('parseArmyLists', () => {
     expect(stub.warnings).toContain('No entries found.');
   });
 
+  it('should restart the header when an empty list is followed by another list in the same record', () => {
+    const [list] = parseFixture('necrofactorium-empty-list-before-list');
+
+    expect(summarize(list)).toMatchObject({
+      title: 'NEW FORCE',
+      army: 'Necrofactorium',
+      caster: 'Lich Lord Dekathus',
+      totalPoints: 73,
+      warnings: [],
+    });
+    expect(modelsOf(list)).toEqual([
+      'Malefactor',
+      'Raptor',
+      'Raptor',
+      'Malfessor',
+      'Criterions',
+      'Mechanithrall Brutes',
+      'Night Terrors',
+      'Sludge Thralls',
+    ]);
+  });
+
+  it('should ignore validation errors that War Room adds to invalid lists', () => {
+    const [list] = parseArmyLists(
+      'Test || Dusk - House Kallyss || Grand Melee - 100 pts || PC      CARD ||         Hellyth, Scyir of Nightfall || 27          Phantasm || ERRORS: || •  Incorrect number of <b>COMMAND CARDS</b>.  Should be 5. || TOTAL POINTS  100/100',
+    );
+
+    expect(list.entries.map(({ name }) => name)).toEqual(['Hellyth, Scyir of Nightfall', 'Phantasm']);
+  });
+
   it('should treat numbered equipment slots and weapons as modules', () => {
     const [list] = parseArmyLists(
       [

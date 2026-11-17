@@ -22,12 +22,12 @@ export function WinRate({ winRate, games }: WinRateProps) {
       <span
         className={classNames('font-semibold', {
           'text-success': isReliable && winRate !== null && winRate >= STRONG_WIN_RATE,
-          'text-error': isReliable && winRate !== null && winRate <= WEAK_WIN_RATE,
+          'text-danger': isReliable && winRate !== null && winRate <= WEAK_WIN_RATE,
         })}
       >
         {formatPercent(winRate)}
       </span>{' '}
-      <span className="text-base-content/70 text-xs">({games === 1 ? '1 game' : `${games} games`})</span>
+      <span className="text-muted text-xs">({games === 1 ? '1 game' : `${games} games`})</span>
     </span>
   );
 }
@@ -40,7 +40,7 @@ export interface ShareProps {
 export function Share({ part, total }: ShareProps) {
   return (
     <span className="whitespace-nowrap">
-      {formatPercent(total > 0 ? part / total : null)} <span className="text-base-content/70 text-xs">({part})</span>
+      {formatPercent(total > 0 ? part / total : null)} <span className="text-muted text-xs">({part})</span>
     </span>
   );
 }

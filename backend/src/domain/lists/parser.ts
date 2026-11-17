@@ -1,3 +1,4 @@
+import { editDistance } from 'src/domain/common/text';
 import { ListEntryKind } from 'src/domain/database';
 
 export interface ParsedListEntry {
@@ -35,6 +36,7 @@ const ENTRY_LINE = /^\s*(\d+)?\s*(\S.*?)\s*$/;
 // Modules and equipment are written with an upper case slot, e.g. "HEAD - Focus Vault", "RIGHT HEX BLADE - Force Generator" or "DEFENSE 1 - Barrier".
 const MODULE_NAME = /^[A-Z][A-Z0-9 '&/.]*? - /;
 const NUMBER_SUFFIX = /\s+\d+$/;
+const VALIDATION_LINE = /^(ERRORS?:|WARNINGS?:|•)/i;
 const MIN_FUZZY_LENGTH = 6;
 const MAX_TYPOS = 2;
 
@@ -108,6 +110,11 @@ function parseArmyList(lines: string[]): ParsedList {
       continue;
     }
 
+    // War Room appends validation errors to invalid lists.
+    if (VALIDATION_LINE.test(trimmed)) {
+      continue;
+    }
+
     if (section === 'header') {
       headerLines.push(trimmed);
 
@@ -117,6 +124,10 @@ function parseArmyList(lines: string[]): ParsedList {
       }
     } else if (section === 'commands') {
       list.commandCards.push(trimmed);
+    } else if (FORMAT_LINE.test(trimmed) && rawEntries.every(({ points }) => points === null)) {
+      // Players sometimes export an empty list right before the actual one, so a second header follows the first card header.
+      headerLines.splice(0, headerLines.length, ...rawEntries.map(({ name }) => name), trimmed);
+      rawEntries.length = 0;
     } else {
       const match = ENTRY_LINE.exec(line);
       if (match) {
@@ -258,19 +269,4 @@ export function isSameCaster(a: string, b: string) {
   const rightName = normalize(b.split(',')[0]);
 
   return leftName.length >= MIN_FUZZY_LENGTH && editDistance(leftName, rightName) <= MAX_TYPOS;
-}
-
-function editDistance(a: string, b: string) {
-  let previous = Array.from({ length: b.length + 1 }, (_, i) => i);
-
-  for (let i = 1; i <= a.length; i++) {
-    const current = [i];
-    for (let j = 1; j <= b.length; j++) {
-      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
-      current.push(Math.min(previous[j] + 1, current[j - 1] + 1, previous[j - 1] + cost));
-    }
-    previous = current;
-  }
-
-  return previous[b.length];
 }

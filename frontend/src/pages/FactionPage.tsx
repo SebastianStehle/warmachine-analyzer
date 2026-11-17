@@ -1,27 +1,37 @@
+import type { Key } from '@heroui/react';
+import { Breadcrumbs, Card, Link, ListBox, Select, Switch, Table, Tabs } from '@heroui/react';
 import { useQuery } from '@tanstack/react-query';
+import classNames from 'classnames';
 import { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { CasterStatsDto, MatchupStatsDto, UnitStatsDto, useClients } from 'src/api';
-import { ArmyLink, PageHeader, QueryState, SearchInput, Share, SortHeader, StatTile, WinRate } from 'src/components';
+import { useParams } from 'react-router-dom';
+import { CasterStatsDto, MatchupStatsDto, ModelType, UnitStatsDto, useClients } from 'src/api';
+import {
+  ArmyLink,
+  ModelTypeBadge,
+  PageHeader,
+  QueryState,
+  SearchInput,
+  Share,
+  SortableColumn,
+  StatTile,
+  WikiLink,
+  WinRate,
+} from 'src/components';
 import { useDateRange } from 'src/lib/date-range';
 import { factionColor } from 'src/lib/factions';
+import { MODEL_TYPE_LABELS } from 'src/lib/models';
 import { matchesSearch, useClientSort } from 'src/lib/sorting';
 
-type Tab = 'units' | 'casters' | 'matchups';
-
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'units', label: 'Models & units' },
-  { id: 'casters', label: 'Casters' },
-  { id: 'matchups', label: 'Matchups' },
-];
+const ALL_TYPES = 'all';
+const OTHER_TYPE = 'other';
 
 const UNIT_ACCESSORS = {
   name: (x: UnitStatsDto) => x.name,
+  type: (x: UnitStatsDto) => (x.type ? MODEL_TYPE_LABELS[x.type] : null),
   lists: (x: UnitStatsDto) => x.lists,
   copies: (x: UnitStatsDto) => x.copies,
   averagePoints: (x: UnitStatsDto) => x.averagePoints,
   winRate: (x: UnitStatsDto) => x.winRate,
-  games: (x: UnitStatsDto) => x.games,
 };
 
 const CASTER_ACCESSORS = {
@@ -40,152 +50,207 @@ const MATCHUP_ACCESSORS = {
 const listsLink = (army: string, filter: Record<string, string>) =>
   `/lists?${new URLSearchParams({ army, ...filter }).toString()}`;
 
+function TypeSelect({ types, value, onChange }: { types: ModelType[]; value: string; onChange: (value: string) => void }) {
+  return (
+    <Select aria-label="Type" className="w-44" value={value} onChange={(key: Key | null) => onChange(String(key ?? ALL_TYPES))}>
+      <Select.Trigger>
+        <Select.Value />
+        <Select.Indicator />
+      </Select.Trigger>
+      <Select.Popover>
+        <ListBox>
+          <ListBox.Item id={ALL_TYPES} textValue="All types">
+            All types
+            <ListBox.ItemIndicator />
+          </ListBox.Item>
+          {types.map((type) => (
+            <ListBox.Item key={type} id={type} textValue={MODEL_TYPE_LABELS[type]}>
+              {MODEL_TYPE_LABELS[type]}
+              <ListBox.ItemIndicator />
+            </ListBox.Item>
+          ))}
+          <ListBox.Item id={OTHER_TYPE} textValue="Other">
+            Other
+            <ListBox.ItemIndicator />
+          </ListBox.Item>
+        </ListBox>
+      </Select.Popover>
+    </Select>
+  );
+}
+
 function UnitsTable({ army, units, totalLists }: { army: string; units: UnitStatsDto[]; totalLists: number }) {
   const [search, setSearch] = useState('');
-  const { sorted, sort, toggle } = useClientSort(
-    units.filter(({ name }) => matchesSearch(search, name)),
+  const [type, setType] = useState(ALL_TYPES);
+  const [showUnplayed, setShowUnplayed] = useState(true);
+
+  const types = [...new Set(units.map((unit) => unit.type).filter((x): x is ModelType => !!x))];
+
+  const { sorted, sortDescriptor, onSortChange } = useClientSort(
+    units.filter(
+      (unit) =>
+        matchesSearch(search, unit.name) &&
+        (type === ALL_TYPES || (type === OTHER_TYPE ? !unit.type : unit.type === type)) &&
+        (showUnplayed || unit.lists > 0),
+    ),
     UNIT_ACCESSORS,
-    { key: 'lists', order: 'desc' },
+    { column: 'lists', direction: 'descending' },
   );
 
   return (
-    <>
-      <div className="flex justify-end p-3">
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center justify-end gap-3">
+        <Switch isSelected={showUnplayed} onChange={setShowUnplayed}>
+          <Switch.Content>
+            <Switch.Control>
+              <Switch.Thumb />
+            </Switch.Control>
+            Show unplayed
+          </Switch.Content>
+        </Switch>
+        <TypeSelect types={types} value={type} onChange={setType} />
         <SearchInput value={search} onChange={setSearch} placeholder="Search models and units" />
       </div>
-      <table className="table">
-        <thead>
-          <tr>
-            <SortHeader sortKey="name" sort={sort} onSort={toggle}>
-              Model / unit
-            </SortHeader>
-            <SortHeader sortKey="lists" sort={sort} onSort={toggle}>
-              In lists
-            </SortHeader>
-            <SortHeader sortKey="copies" sort={sort} onSort={toggle}>
-              Copies
-            </SortHeader>
-            <SortHeader sortKey="averagePoints" sort={sort} onSort={toggle}>
-              Avg. points
-            </SortHeader>
-            <SortHeader sortKey="winRate" sort={sort} onSort={toggle}>
-              Win rate when played
-            </SortHeader>
-          </tr>
-        </thead>
-        <tbody>
-          {sorted.map(({ name, lists, copies, averagePoints, games, winRate }) => (
-            <tr key={name} className="hover:bg-base-200">
-              <td>
-                <Link className="link link-hover font-semibold" to={listsLink(army, { unit: name })}>
-                  {name}
-                </Link>
-              </td>
-              <td>
-                <Share part={lists} total={totalLists} />
-              </td>
-              <td>{copies}</td>
-              <td>{averagePoints ?? '–'}</td>
-              <td>
-                <WinRate winRate={winRate} games={games} />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </>
+
+      <Table>
+        <Table.ScrollContainer>
+          <Table.Content aria-label="Models and units" sortDescriptor={sortDescriptor} onSortChange={onSortChange}>
+            <Table.Header>
+              <SortableColumn id="name" isRowHeader>
+                Model / unit
+              </SortableColumn>
+              <SortableColumn id="type">Type</SortableColumn>
+              <SortableColumn id="lists">In lists</SortableColumn>
+              <SortableColumn id="copies">Copies</SortableColumn>
+              <SortableColumn id="averagePoints">Avg. points</SortableColumn>
+              <SortableColumn id="winRate">Win rate when played</SortableColumn>
+            </Table.Header>
+            <Table.Body>
+              {sorted.map(({ name, type: modelType, wikiPage, lists, copies, averagePoints, games, winRate }) => (
+                <Table.Row key={name} id={name} className={classNames({ 'opacity-60': lists === 0 })}>
+                  <Table.Cell>
+                    <div className="flex items-baseline gap-2">
+                      {lists > 0 ? (
+                        <Link className="font-semibold" href={listsLink(army, { unit: name })}>
+                          {name}
+                        </Link>
+                      ) : (
+                        <span className="font-semibold">{name}</span>
+                      )}
+                      <WikiLink page={wikiPage} />
+                    </div>
+                  </Table.Cell>
+                  <Table.Cell>
+                    <ModelTypeBadge type={modelType} />
+                  </Table.Cell>
+                  <Table.Cell>
+                    <Share part={lists} total={totalLists} />
+                  </Table.Cell>
+                  <Table.Cell>{copies}</Table.Cell>
+                  <Table.Cell>{averagePoints ?? '–'}</Table.Cell>
+                  <Table.Cell>
+                    <WinRate winRate={winRate} games={games} />
+                  </Table.Cell>
+                </Table.Row>
+              ))}
+            </Table.Body>
+          </Table.Content>
+        </Table.ScrollContainer>
+      </Table>
+    </div>
   );
 }
 
 function CastersTable({ army, casters, totalLists }: { army: string; casters: CasterStatsDto[]; totalLists: number }) {
   const [search, setSearch] = useState('');
-  const { sorted, sort, toggle } = useClientSort(
+  const { sorted, sortDescriptor, onSortChange } = useClientSort(
     casters.filter(({ caster }) => matchesSearch(search, caster)),
     CASTER_ACCESSORS,
-    { key: 'lists', order: 'desc' },
+    { column: 'lists', direction: 'descending' },
   );
 
   return (
-    <>
-      <div className="flex justify-end p-3">
+    <div className="flex flex-col gap-3">
+      <div className="flex justify-end">
         <SearchInput value={search} onChange={setSearch} placeholder="Search casters" />
       </div>
-      <table className="table">
-        <thead>
-          <tr>
-            <SortHeader sortKey="caster" sort={sort} onSort={toggle}>
-              Caster
-            </SortHeader>
-            <SortHeader sortKey="lists" sort={sort} onSort={toggle}>
-              In lists
-            </SortHeader>
-            <SortHeader sortKey="winRate" sort={sort} onSort={toggle}>
-              Win rate
-            </SortHeader>
-            <SortHeader sortKey="games" sort={sort} onSort={toggle}>
-              W / L / D
-            </SortHeader>
-          </tr>
-        </thead>
-        <tbody>
-          {sorted.map(({ caster, lists, games, wins, losses, draws, winRate }) => (
-            <tr key={caster} className="hover:bg-base-200">
-              <td>
-                <Link className="link link-hover font-semibold" to={listsLink(army, { caster })}>
-                  {caster}
-                </Link>
-              </td>
-              <td>
-                <Share part={lists} total={totalLists} />
-              </td>
-              <td>
-                <WinRate winRate={winRate} games={games} />
-              </td>
-              <td className="whitespace-nowrap">
-                {wins} / {losses} / {draws}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </>
+
+      <Table>
+        <Table.ScrollContainer>
+          <Table.Content aria-label="Casters" sortDescriptor={sortDescriptor} onSortChange={onSortChange}>
+            <Table.Header>
+              <SortableColumn id="caster" isRowHeader>
+                Caster
+              </SortableColumn>
+              <SortableColumn id="lists">In lists</SortableColumn>
+              <SortableColumn id="winRate">Win rate</SortableColumn>
+              <SortableColumn id="games">W / L / D</SortableColumn>
+            </Table.Header>
+            <Table.Body>
+              {sorted.map(({ caster, wikiPage, lists, games, wins, losses, draws, winRate }) => (
+                <Table.Row key={caster} id={caster} className={classNames({ 'opacity-60': lists === 0 && games === 0 })}>
+                  <Table.Cell>
+                    <div className="flex items-baseline gap-2">
+                      <Link className="font-semibold" href={listsLink(army, { caster })}>
+                        {caster}
+                      </Link>
+                      <WikiLink page={wikiPage} />
+                    </div>
+                  </Table.Cell>
+                  <Table.Cell>
+                    <Share part={lists} total={totalLists} />
+                  </Table.Cell>
+                  <Table.Cell>
+                    <WinRate winRate={winRate} games={games} />
+                  </Table.Cell>
+                  <Table.Cell className="whitespace-nowrap">
+                    {wins} / {losses} / {draws}
+                  </Table.Cell>
+                </Table.Row>
+              ))}
+            </Table.Body>
+          </Table.Content>
+        </Table.ScrollContainer>
+      </Table>
+    </div>
   );
 }
 
 function MatchupsTable({ matchups }: { matchups: MatchupStatsDto[] }) {
-  const { sorted, sort, toggle } = useClientSort(matchups, MATCHUP_ACCESSORS, { key: 'games', order: 'desc' });
+  const { sorted, sortDescriptor, onSortChange } = useClientSort(matchups, MATCHUP_ACCESSORS, {
+    column: 'games',
+    direction: 'descending',
+  });
 
   return (
-    <table className="table">
-      <thead>
-        <tr>
-          <SortHeader sortKey="opponent" sort={sort} onSort={toggle}>
-            Against
-          </SortHeader>
-          <SortHeader sortKey="winRate" sort={sort} onSort={toggle}>
-            Win rate
-          </SortHeader>
-          <SortHeader sortKey="games" sort={sort} onSort={toggle}>
-            W / L / D
-          </SortHeader>
-        </tr>
-      </thead>
-      <tbody>
-        {sorted.map(({ opponent, games, wins, losses, draws, winRate }) => (
-          <tr key={opponent} className="hover:bg-base-200">
-            <td className="font-semibold">
-              <ArmyLink army={opponent} />
-            </td>
-            <td>
-              <WinRate winRate={winRate} games={games} />
-            </td>
-            <td className="whitespace-nowrap">
-              {wins} / {losses} / {draws}
-            </td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+    <Table>
+      <Table.ScrollContainer>
+        <Table.Content aria-label="Matchups" sortDescriptor={sortDescriptor} onSortChange={onSortChange}>
+          <Table.Header>
+            <SortableColumn id="opponent" isRowHeader>
+              Against
+            </SortableColumn>
+            <SortableColumn id="winRate">Win rate</SortableColumn>
+            <SortableColumn id="games">W / L / D</SortableColumn>
+          </Table.Header>
+          <Table.Body>
+            {sorted.map(({ opponent, games, wins, losses, draws, winRate }) => (
+              <Table.Row key={opponent} id={opponent}>
+                <Table.Cell className="font-semibold">
+                  <ArmyLink army={opponent} />
+                </Table.Cell>
+                <Table.Cell>
+                  <WinRate winRate={winRate} games={games} />
+                </Table.Cell>
+                <Table.Cell className="whitespace-nowrap">
+                  {wins} / {losses} / {draws}
+                </Table.Cell>
+              </Table.Row>
+            ))}
+          </Table.Body>
+        </Table.Content>
+      </Table.ScrollContainer>
+    </Table>
   );
 }
 
@@ -193,7 +258,6 @@ export function FactionPage() {
   const { army = '' } = useParams();
   const clients = useClients();
   const { from, to } = useDateRange();
-  const [tab, setTab] = useState<Tab>('units');
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['faction', army, from, to],
@@ -202,14 +266,10 @@ export function FactionPage() {
 
   return (
     <>
-      <div className="breadcrumbs text-sm">
-        <ul>
-          <li>
-            <Link to="/factions">Factions</Link>
-          </li>
-          <li>{army}</li>
-        </ul>
-      </div>
+      <Breadcrumbs>
+        <Breadcrumbs.Item href="/factions">Factions</Breadcrumbs.Item>
+        <Breadcrumbs.Item>{army}</Breadcrumbs.Item>
+      </Breadcrumbs>
 
       <QueryState isLoading={isLoading} error={error}>
         {data && (
@@ -226,14 +286,7 @@ export function FactionPage() {
 
             <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
               <StatTile label="Players" value={data.stats.players} />
-              <StatTile
-                label="Lists"
-                value={
-                  <Link className="link link-hover" to={listsLink(army, {})}>
-                    {data.stats.lists}
-                  </Link>
-                }
-              />
+              <StatTile label="Lists" value={<Link href={listsLink(army, {})}>{data.stats.lists}</Link>} />
               <StatTile label="Win rate" value={<WinRate winRate={data.stats.winRate} games={data.stats.games} />} />
               <StatTile
                 label="Record"
@@ -242,24 +295,35 @@ export function FactionPage() {
               />
             </div>
 
-            <div role="tablist" className="tabs tabs-box w-fit">
-              {TABS.map(({ id, label }) => (
-                <button
-                  key={id}
-                  role="tab"
-                  className={`tab font-display tracking-wide uppercase ${tab === id ? 'tab-active' : ''}`}
-                  onClick={() => setTab(id)}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-
-            <div className="panel overflow-x-auto">
-              {tab === 'units' && <UnitsTable army={army} units={data.units} totalLists={data.stats.lists} />}
-              {tab === 'casters' && <CastersTable army={army} casters={data.casters} totalLists={data.stats.lists} />}
-              {tab === 'matchups' && <MatchupsTable matchups={data.matchups} />}
-            </div>
+            <Card>
+              <Tabs>
+                <Tabs.ListContainer>
+                  <Tabs.List aria-label="Details" className="w-fit">
+                    <Tabs.Tab id="units" className="font-display tracking-wide uppercase">
+                      Models & units
+                      <Tabs.Indicator />
+                    </Tabs.Tab>
+                    <Tabs.Tab id="casters" className="font-display tracking-wide uppercase">
+                      Casters
+                      <Tabs.Indicator />
+                    </Tabs.Tab>
+                    <Tabs.Tab id="matchups" className="font-display tracking-wide uppercase">
+                      Matchups
+                      <Tabs.Indicator />
+                    </Tabs.Tab>
+                  </Tabs.List>
+                </Tabs.ListContainer>
+                <Tabs.Panel className="pt-4" id="units">
+                  <UnitsTable army={army} units={data.units} totalLists={data.stats.lists} />
+                </Tabs.Panel>
+                <Tabs.Panel className="pt-4" id="casters">
+                  <CastersTable army={army} casters={data.casters} totalLists={data.stats.lists} />
+                </Tabs.Panel>
+                <Tabs.Panel className="pt-4" id="matchups">
+                  <MatchupsTable matchups={data.matchups} />
+                </Tabs.Panel>
+              </Tabs>
+            </Card>
           </>
         )}
       </QueryState>

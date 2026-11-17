@@ -2,7 +2,7 @@ import { IQueryHandler, Query, QueryHandler } from '@nestjs/cqrs';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { PageRequest, SortRequest, toSearchPattern, toSqlOrder } from 'src/domain/common/query';
-import { EventEntity, ParticipantEntity, PlayerEntity } from 'src/domain/database';
+import { ArmyEntity, EventEntity, ParticipantEntity, PlayerEntity } from 'src/domain/database';
 import { applyDateRange } from 'src/domain/statistics/utils';
 
 export interface PlayerSummary {
@@ -60,14 +60,14 @@ export async function loadMainArmies(dataSource: DataSource, playerIds: number[]
       .getRepository(ParticipantEntity)
       .createQueryBuilder('p')
       .innerJoin(EventEntity, 'e', 'e.id = p.eventId')
+      .innerJoin(ArmyEntity, 'a', 'a.id = p.armyId')
       .select('p.playerId', 'playerId')
-      .addSelect('p.army', 'army')
+      .addSelect('a.name', 'army')
       .addSelect('COUNT(*)', 'events')
       .addSelect('MAX(e.date)', 'lastDate')
       .where('p.playerId IN (:...playerIds)', { playerIds })
-      .andWhere('p.army IS NOT NULL')
       .groupBy('p.playerId')
-      .addGroupBy('p.army'),
+      .addGroupBy('a.name'),
     'e',
     range,
   ).getRawMany<{ playerId: number; army: string; events: string; lastDate: string }>();

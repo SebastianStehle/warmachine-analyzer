@@ -1,4 +1,7 @@
-import { Column, Entity, Index, PrimaryGeneratedColumn, Repository } from 'typeorm';
+import { Column, Entity, Index, JoinColumn, ManyToOne, PrimaryGeneratedColumn, Repository } from 'typeorm';
+import { ArmyEntity } from './army';
+import { EventEntity } from './event';
+import { PlayerEntity } from './player';
 
 export type ParticipantRepository = Repository<ParticipantEntity>;
 
@@ -11,17 +14,28 @@ export class ParticipantEntity {
   @Column('int')
   eventId: number;
 
+  @ManyToOne(() => EventEntity, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'eventId' })
+  event: EventEntity;
+
+  @Index()
   @Column('int')
   playerId: number;
+
+  @ManyToOne(() => PlayerEntity, { onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'playerId' })
+  player: PlayerEntity;
 
   @Column('int')
   rank: number;
 
-  @Column('varchar', { length: 100, nullable: true })
-  army?: string | null;
+  @Index()
+  @Column('int', { nullable: true })
+  armyId: number | null;
 
-  @Column('varchar', { length: 100, nullable: true })
-  faction?: string | null;
+  @ManyToOne(() => ArmyEntity, { onDelete: 'RESTRICT', nullable: true })
+  @JoinColumn({ name: 'armyId' })
+  army: ArmyEntity | null;
 
   @Column('int')
   tournamentPoints: number;
@@ -33,11 +47,11 @@ export class ParticipantEntity {
   losses: number;
 
   @Column('int', { nullable: true })
-  strengthOfSchedule?: number | null;
+  strengthOfSchedule: number | null;
 
   @Column('int', { nullable: true })
-  controlPoints?: number | null;
+  controlPoints: number | null;
 
   @Column('int', { nullable: true })
-  armyPoints?: number | null;
+  armyPoints: number | null;
 }

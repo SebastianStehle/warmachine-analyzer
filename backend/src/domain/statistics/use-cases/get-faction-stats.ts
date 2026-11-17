@@ -1,9 +1,9 @@
 import { IQueryHandler, Query, QueryHandler } from '@nestjs/cqrs';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
-import { ArmyListEntity, EventEntity, GamePlayerEntity, ParticipantEntity } from 'src/domain/database';
+import { ArmyListEntity, EventEntity, GameEntity, GamePlayerEntity, ParticipantEntity } from 'src/domain/database';
 import { DateRange, FactionStats } from '../interfaces';
-import { applyDateRange, byGamesDescending, selectRecord, toRecord } from '../utils';
+import { applyDateRange, byGamesDescending, loadArmyNames, RecordRow, selectRecord, toRecord } from '../utils';
 
 export class GetFactionStatsQuery extends Query<GetFactionStatsResult> {
   constructor(public readonly range: DateRange) {
@@ -27,9 +27,9 @@ export class GetFactionStatsHandler implements IQueryHandler<GetFactionStatsQuer
   }
 }
 
-export async function loadFactionStats(dataSource: DataSource, range: DateRange, army?: string) {
+export async function loadFactionStats(dataSource: DataSource, range: DateRange, armyId?: number) {
   const filterArmy = <T extends { andWhere: (where: string, parameters?: object) => T }>(query: T, column: string) =>
-    army ? query.andWhere(`${column} = :army`, { army }) : query;
+    armyId ? query.andWhere(`${column} = :armyId`, { armyId }) : query;
 
   const players = await filterArmy(
     applyDateRange(
@@ -37,17 +37,15 @@ export async function loadFactionStats(dataSource: DataSource, range: DateRange,
         .getRepository(ParticipantEntity)
         .createQueryBuilder('p')
         .innerJoin(EventEntity, 'e', 'e.id = p.eventId')
-        .select('p.army', 'army')
-        .addSelect('p.faction', 'faction')
+        .select('p.armyId', 'armyId')
         .addSelect('COUNT(*)', 'players')
-        .where('p.army IS NOT NULL')
-        .groupBy('p.army')
-        .addGroupBy('p.faction'),
+        .where('p.armyId IS NOT NULL')
+        .groupBy('p.armyId'),
       'e',
       range,
     ),
-    'p.army',
-  ).getRawMany<{ army: string; faction: string | null; players: string }>();
+    'p.armyId',
+  ).getRawMany<{ armyId: number; players: string }>();
 
   const lists = await filterArmy(
     applyDateRange(
@@ -55,15 +53,14 @@ export async function loadFactionStats(dataSource: DataSource, range: DateRange,
         .getRepository(ArmyListEntity)
         .createQueryBuilder('l')
         .innerJoin(EventEntity, 'e', 'e.id = l.eventId')
-        .select('l.army', 'army')
+        .select('l.armyId', 'armyId')
         .addSelect('COUNT(*)', 'lists')
-        .where('l.army IS NOT NULL')
-        .groupBy('l.army'),
+        .groupBy('l.armyId'),
       'e',
       range,
     ),
-    'l.army',
-  ).getRawMany<{ army: string; lists: string }>();
+    'l.armyId',
+  ).getRawMany<{ armyId: number; lists: string }>();
 
   // Mirror matches always produce one win and one loss, so they are excluded from the win rate.
   const games = await filterArmy(
@@ -72,70 +69,63 @@ export async function loadFactionStats(dataSource: DataSource, range: DateRange,
         dataSource
           .getRepository(GamePlayerEntity)
           .createQueryBuilder('gp')
-          .innerJoin(EventEntity, 'e', 'e.id = gp.eventId')
-          .select('gp.army', 'army')
-          .where('gp.army IS NOT NULL')
+          .innerJoin(GameEntity, 'g', 'g.id = gp.gameId')
+          .innerJoin(EventEntity, 'e', 'e.id = g.eventId')
+          .select('gp.armyId', 'armyId')
+          .where('gp.armyId IS NOT NULL')
           .andWhere('gp.opponentId IS NOT NULL')
-          .andWhere('gp.opponentArmy IS NOT NULL')
-          .andWhere('gp.army <> gp.opponentArmy')
-          .groupBy('gp.army'),
+          .andWhere('gp.opponentArmyId IS NOT NULL')
+          .andWhere('gp.armyId <> gp.opponentArmyId')
+          .groupBy('gp.armyId'),
         'e',
         range,
       ),
       'gp',
     ),
-    'gp.army',
-  ).getRawMany();
+    'gp.armyId',
+  ).getRawMany<{ armyId: number } & RecordRow>();
 
   const mirrors = await filterArmy(
     applyDateRange(
       dataSource
         .getRepository(GamePlayerEntity)
         .createQueryBuilder('gp')
-        .innerJoin(EventEntity, 'e', 'e.id = gp.eventId')
-        .select('gp.army', 'army')
+        .innerJoin(GameEntity, 'g', 'g.id = gp.gameId')
+        .innerJoin(EventEntity, 'e', 'e.id = g.eventId')
+        .select('gp.armyId', 'armyId')
         .addSelect('COUNT(*)', 'mirrors')
-        .where('gp.army = gp.opponentArmy')
-        .groupBy('gp.army'),
+        .where('gp.armyId = gp.opponentArmyId')
+        .groupBy('gp.armyId'),
       'e',
       range,
     ),
-    'gp.army',
-  ).getRawMany<{ army: string; mirrors: string }>();
+    'gp.armyId',
+  ).getRawMany<{ armyId: number; mirrors: string }>();
 
-  const result = new Map<string, FactionStats>();
-  const factionCounts = new Map<string, number>();
-
-  const getOrCreate = (name: string) => {
-    let stats = result.get(name);
-    if (!stats) {
-      stats = { army: name, faction: null, players: 0, lists: 0, mirrors: 0, ...toRecord() };
-      result.set(name, stats);
-    }
-    return stats;
-  };
-
-  for (const { army: name, faction, players: count } of players) {
-    const stats = getOrCreate(name);
-    stats.players += Number(count);
-
-    // The faction comes from the free text list header, so the most common value wins.
-    if (faction && Number(count) > (factionCounts.get(name) ?? 0)) {
-      factionCounts.set(name, Number(count));
-      stats.faction = faction;
+  // All armies of the catalog are part of the result, also before anything has been crawled.
+  const result = new Map<number, FactionStats>();
+  for (const [id, { name, faction }] of await loadArmyNames(dataSource)) {
+    if (!armyId || id === armyId) {
+      result.set(id, { army: name, faction, players: 0, lists: 0, mirrors: 0, ...toRecord() });
     }
   }
 
-  for (const { army: name, lists: count } of lists) {
-    getOrCreate(name).lists = Number(count);
+  const getOrCreate = (id: number) => result.get(id)!;
+
+  for (const { armyId: id, players: count } of players) {
+    getOrCreate(id).players = Number(count);
+  }
+
+  for (const { armyId: id, lists: count } of lists) {
+    getOrCreate(id).lists = Number(count);
   }
 
   for (const row of games) {
-    Object.assign(getOrCreate(row.army), toRecord(row));
+    Object.assign(getOrCreate(row.armyId), toRecord(row));
   }
 
-  for (const { army: name, mirrors: count } of mirrors) {
-    getOrCreate(name).mirrors = Number(count) / 2;
+  for (const { armyId: id, mirrors: count } of mirrors) {
+    getOrCreate(id).mirrors = Number(count) / 2;
   }
 
   return [...result.values()].sort((a, b) => b.players - a.players || byGamesDescending(a, b) || a.army.localeCompare(b.army));

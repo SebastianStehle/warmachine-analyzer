@@ -26,6 +26,9 @@ npm run crawl -- --from 2026-10-01 --to 2026-10-31
 npm run crawl -- --event 38573 --refresh       # download everything again
 npm run crawl -- --from 2025-01-01 --parallel 3 # import 3 events at once
 npm run crawl -- --reparse                     # re-parse everything from stored pages, no downloads
+npm run crawl -- --catalog                     # load factions, armies and models from the wiki into the catalog file and import it
+npm run crawl -- --catalog --reparse           # the same, then re-parse all lists against the new catalog
+npm run prune                                  # drop all tables to start from scratch (including the page cache)
 ```
 
 Then start the app. Besides factions and lists there are pages for players and events, every table can be sorted, and most can be searched.
@@ -54,11 +57,34 @@ CRAWLER_SCHEDULE=0 4 * * *      # every day at 04:00
 CRAWLER_LOOKBACK_DAYS=14        # check the last two weeks for new events
 ```
 
+## Models from the wiki
+
+Factions, armies and models come from the army indexes of the [Warmachine Academy wiki](https://warmachineacademy.miraheze.org/wiki/Main_Page) (the footer at the end of each army page). `npm run crawl -- --catalog` loads them, writes them to `backend/src/domain/catalog/catalog.json`, and imports them; add `--reparse` to match all lists against the new catalog. Run it again whenever the wiki changes and commit the file. When the backend or the crawler starts with an empty database, the catalog file is imported automatically.
+
+Only armies that have an index in the wiki are analyzed. Lists of other armies (e.g. Legacy armies) are not stored, and players of those armies show up without an army.
+
+Every list entry is matched to a model of its army: exact names first, then names without numbers, then small spelling errors (edit distance, more typos allowed for longer names). Entries that match no model are kept with their name as written and shown as "Other". Equipment and weapons of warjacks and warbeasts never match and are hidden with "Show equipment".
+
 ## Reading the numbers
 
 - **Win rate** counts a draw as half a win. Byes and mirror matches are left out.
 - Every percentage shows how many games or lists it is based on. Win rates from fewer than 10 games are faded.
 - **Win rate when played** for a unit only counts games where the list containing that unit was played.
+
+## Docker image and deployment
+
+Every push to `main` runs the integration tests and builds the image (lint, build and unit tests run inside the `Dockerfile`). It is published to the GitHub Container Registry as `ghcr.io/<owner>/<repository>` with the tags `latest`, the build number and the commit. Pull requests only build the image.
+
+`dev/docker-compose.yml` runs the published image together with Postgres:
+
+```bash
+cd dev
+docker compose up -d                          # Postgres and the analyzer on http://localhost:3100
+docker compose --profile autoupdate up -d     # also starts Watchtower, which updates the analyzer to the latest image
+docker compose exec analyzer node dist/crawl.js --from 2026-01-01   # crawl inside the container
+```
+
+The analyzer crawls new events every day at 04:00 (`CRAWLER_SCHEDULE`). Set `ANALYZER_IMAGE` when the repository has another name than `SebastianStehle/warmachine-analyzer`. Watchtower checks for a new image every 5 minutes and only updates containers with the `com.centurylinklabs.watchtower.enable` label, never Postgres. If the package on GitHub is private, run `docker login ghcr.io` with a personal access token (scope `read:packages`) on the host first.
 
 ## Development
 

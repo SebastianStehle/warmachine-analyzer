@@ -577,7 +577,6 @@ components:
         army:
           type: string
           description: The army.
-          nullable: true
         caster:
           type: string
           description: The caster.
@@ -663,7 +662,6 @@ components:
         army:
           type: string
           description: The army.
-          nullable: true
         lists:
           type: number
           description: The number of lists with this caster.
@@ -688,6 +686,18 @@ components:
         - model
         - module
       description: The kind of entry.
+    ModelType:
+      type: string
+      enum:
+        - leader
+        - warjack
+        - warbeast
+        - battle-engine
+        - solo
+        - unit
+        - attachment
+        - structure
+      description: The type of the matched model.
     ListEntryDto:
       type: object
       properties:
@@ -705,11 +715,27 @@ components:
           description: The kind of entry.
           allOf:
             - $ref: "#/components/schemas/ListEntryKind"
+        modelName:
+          type: string
+          description: The name of the matched model in the wiki.
+          nullable: true
+        modelType:
+          description: The type of the matched model.
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/ModelType"
+        wikiPage:
+          type: string
+          description: The page of the matched model in the wiki.
+          nullable: true
       required:
         - name
         - points
         - depth
         - kind
+        - modelName
+        - modelType
+        - wikiPage
     GameResult:
       type: string
       enum:
@@ -781,7 +807,6 @@ components:
         army:
           type: string
           description: The army.
-          nullable: true
         caster:
           type: string
           description: The caster.
@@ -1157,6 +1182,10 @@ components:
         caster:
           type: string
           description: The name of the caster.
+        wikiPage:
+          type: string
+          description: The page of the caster in the wiki.
+          nullable: true
         lists:
           type: number
           description: The number of lists with this caster.
@@ -1167,6 +1196,7 @@ components:
         - draws
         - winRate
         - caster
+        - wikiPage
         - lists
     UnitStatsDto:
       type: object
@@ -1190,6 +1220,15 @@ components:
         name:
           type: string
           description: The name of the model or unit.
+        type:
+          description: The type from the wiki, null when the model is not in the wiki.
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/ModelType"
+        wikiPage:
+          type: string
+          description: The page of the model in the wiki.
+          nullable: true
         lists:
           type: number
           description: The number of lists containing it.
@@ -1207,6 +1246,8 @@ components:
         - draws
         - winRate
         - name
+        - type
+        - wikiPage
         - lists
         - copies
         - averagePoints

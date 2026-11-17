@@ -36,13 +36,30 @@ There is no API, but everything we need is public HTML — no login required. Th
 - A single list record can contain several lists (split by `TOTAL POINTS`), and players can have several records. `sourceId` + `sourceIndex` identify a list.
 - `LONGSHANKS_EMAIL` / `LONGSHANKS_PASSWORD` are optional and currently unused. Never commit them, never log them.
 
+## Data source: Warmachine Academy wiki
+
+- The official model catalog comes from the army indexes of https://warmachineacademy.miraheze.org (MediaWiki). Each army page ends with an index from a template named `<Army> Footer`; the importer lists all templates via `api.php?action=query&list=allpages&apnamespace=10` and parses the rendered footers (`action=parse`). Legacy and Unlimited indexes are skipped.
+- Keep all wiki-specific code in `backend/src/domain/wiki/`. Requests are throttled (`WIKI_REQUEST_DELAY_MS`).
+- `UpdateCatalog` (`npm run crawl -- --catalog`) loads the indexes, writes `src/domain/catalog/catalog.json` (sorted, committed to the repository), and imports it (`--reparse` re-parses all events afterwards). Do not edit the catalog file by hand, rerun the command.
+- `ImportCatalog` upserts factions, armies, models and army models by name from the catalog file. `CatalogSeeder` runs it on startup when the database has no models.
+- List entries are matched to models in app code (`ModelMatcher`, Levenshtein distance), not in the database, so the matching stays DB-agnostic and testable. Unmatched entries keep `modelId = null`; keep the name as written.
+
 ## Domain
 
 - **Event** — Longshanks event id, name, date, location, format (e.g. Steamroller, Iron Gauntlet), points level, player count.
 - **Player** — Longshanks player id and name.
 - **Participation** — a player in an event: final rank, tournament points, tiebreakers (SOS, Control Points, Army Points), and one or more submitted lists.
 - **ArmyList** — the raw list text as submitted plus the parsed result: faction, army (theme / Army list), caster, points, and list entries (model or unit, size, attachments, points).
+- **Faction / Army / Model** — the official catalog from the wiki. A model belongs to one or more armies (`army_models`, mercenaries are flagged) and has a type (leader, warjack, warbeast, battle-engine, solo, unit, attachment, structure). List entries reference their model if they match one.
 - **Game** — round, both participants, result, which of each player's lists was played (if known), scenario, Control Points and Army Points.
+
+Strong referential integrity:
+
+- Never store the name of another entity (army, faction, caster, opponent), store its id with a foreign key and join for names. Text columns are only for data that has no entity, e.g. a list entry as written in the list.
+- Every reference is a `@ManyToOne` relation next to its id column, with non-optional types (`army: ArmyEntity`, `caster: ModelEntity | null`). Nullable columns are `T | null`, never optional.
+- Do not copy foreign keys that can be reached through a parent (game players reach their event through the game, list entries through the list).
+- Rows of an event cascade with the event. References to the catalog and to players are `RESTRICT`, the only `SET NULL` is the played list of a game, because lists are deleted when they disappear from Longshanks.
+- Only armies of the catalog are analyzed: lists of unknown armies are not stored, participants and games keep `armyId = NULL`. Army lookup is by name only, never guessed from the faction. Imports fail while the catalog is empty. Write parents before children in imports.
 
 List parsing is the core of the tool. Keep the raw text, parse into a normalized structure, and store parse warnings instead of dropping lists that do not parse cleanly. The parser is a pure function with unit tests built from real list texts.
 
@@ -64,6 +81,8 @@ Backend only:
 - `npm run test:int` — integration tests with TestContainers (needs Docker). Set `TEST_DB_URL` to an admin connection of an existing Postgres server to skip the container.
 - `npm run crawl -- --event <id>` or `npm run crawl -- --from <date> [--to <date>] [--parallel <n>]` — import from Longshanks. `--refresh` ignores the page cache.
 - `npm run crawl -- --reparse` — re-parse all imported events from stored pages, without downloading. Run it after parser changes.
+- `npm run prune` — drop all tables, including the page cache. Migrations and the catalog seed run again on the next start.
+- `npm run crawl -- --catalog [--reparse]` — load factions, armies and models from the wiki into `catalog.json` and import it, optionally re-parse all events.
 - `npm run typeorm:generate-migrations <Name>` — generate TypeORM migrations (data source: `src/domain/database/data-source.ts`).
 
 Env vars are validated per domain with Joi schemas (`DB_ENV_SCHEMA`, `LONGSHANKS_ENV_SCHEMA`, …) combined in `app.module.ts`. New env vars must be added to the matching schema, otherwise startup fails. See `backend/.env.example`.
@@ -85,7 +104,7 @@ Only the OpenAPI spec is committed. The API client is generated from it and is g
 ### Backend
 
 - **CQRS pattern** (@nestjs/cqrs): all domain logic lives in `src/domain/<area>/use-cases/` as `Command`/`Query` classes with co-located `@CommandHandler`/`@QueryHandler` classes. Controllers in `src/controllers/` are thin — they dispatch to the bus and map results to DTOs.
-- **Domain areas** (`src/domain/`): `database` (entities, migrations, `CoreModule` with config + TypeORM + CQRS shared by API and CLI), `longshanks` (HTTP client with page cache, HTML parsers), `imports` (`ImportEvent`, `DiscoverEvents`, scheduler), `lists` (list parser, list queries), `events`, `statistics`.
+- **Domain areas** (`src/domain/`): `database` (entities, migrations, `CoreModule` with config + TypeORM + CQRS shared by API and CLI), `longshanks` (HTTP client with page cache, HTML parsers), `wiki` (wiki client, army index parser), `catalog` (catalog file format and builder), `imports` (`ImportEvent`, `DiscoverEvents`, scheduler), `lists` (list parser, model matcher, list queries), `events`, `statistics`.
 - An import replaces all rows of the event in one transaction, so imports are idempotent.
 - Games are linked to the played list by comparing the game leader with the list caster (`isSameCaster`, tolerant to typos). Players with a single list always get that list.
 - Parser tests are built around real data: `test/fixtures/lists/*.txt` are real list texts from Longshanks (one per quirk), `test/fixtures/*.html` are trimmed real pages. When a list parses wrongly, add the real text as a fixture and a test for it before fixing the parser.
@@ -94,16 +113,28 @@ Only the OpenAPI spec is committed. The API client is generated from it and is g
 
 ### Frontend
 
-- Vite + React 18, TypeScript, Tailwind 4 + daisyUI. Server state via @tanstack/react-query, client state via zustand, forms via react-hook-form + yup, charts via recharts.
+- Vite + React 19, TypeScript, Tailwind 4 + HeroUI v3 (React Aria based components, theme in `src/index.css`). Server state via @tanstack/react-query, client state via zustand, forms via react-hook-form + yup, charts via recharts.
 - All backend calls go through the generated client in `src/api/generated/` — never hand-write fetch calls to the backend.
 - Pages in `src/pages/` (events/, lists/, statistics/); shared components in `src/components/`.
 - Backend URL configured via `VITE_SERVER_URL` in `.env`.
+- Use HeroUI components for every control (Table, Select, Autocomplete, SearchField, Switch, Tabs, Pagination, DateRangePicker, Card, Chip, Alert, Breadcrumbs, Link). Do not write controls with behavior yourself and do not add another component library. Debouncing via use-debounce.
+- HeroUI is compound (`<Table.Content>`, `<Select.Popover>`); the docs examples live in the HeroUI repository under `apps/docs/src/demos/en/`.
+- Sortable tables: `useClientSort` (client side) or `useServerSort` (URL) provide `sortDescriptor`/`onSortChange` for `Table.Content`, columns via `SortableColumn`.
+- Navigation in HeroUI links and table rows uses `href`; `AriaRouter` in `App.tsx` connects React Aria to the router.
+- Colors are HeroUI tokens (`bg-surface`, `text-muted`, `text-accent`, `border-border`, `text-danger`), never raw colors.
+
+## Docker and CI
+
+- `Dockerfile` (repository root): generates the API client, lints, builds and unit tests backend and frontend, the runtime image serves the frontend from the backend on port 3000.
+- `.github/workflows/build.yml`: integration tests on the runner (TestContainers needs Docker), then builds the image and pushes it to `ghcr.io/<owner>/<repository>` on pushes to `main`.
+- `dev/docker-compose.yml`: Postgres for development (`npm run dev:infra` only starts this service), the published image as `analyzer`, and Watchtower in the `autoupdate` profile to update it automatically.
 
 ## Coding Guidelines
 
 * Always run linting after code generation to fix formatting issues.
 * Always use IsEnum, not IsIn to make it consistent.
 * Always use named constants for magic numbers.
+* Never give a `.ts` file the same name as a `.json` file in the same folder. ts-node resolves `./name` to the JSON first (e.g. `catalog-file.ts` next to `catalog.json`).
 * Do keep the number of tests small.
 * Do not add unnecessary types, e.g. `void` for methods or return types that can easily be derived.
 * Do not comment database entities.
@@ -124,7 +155,7 @@ Only the OpenAPI spec is committed. The API client is generated from it and is g
 * Rely on prettier for formatting.
 * Reuse TestContainers when possible, do not spin them up for every single test.
 * Use a fromDomain method for response-dtos. Do not construct the dtos in the constructor.
-* Use daisy-UI components as much as possible.
+* Use HeroUI components as much as possible.
 * Use spread operators and simplifications for mappings.
 * Order property assignments in object literals like the declaration of the target type (entity, interface, DTO), e.g. `{ gameId, eventId, playerId, opponentId, ... }` in the column order of `GamePlayerEntity`. Prefer explicit assignments over spreads when the source has a different order.
 * Use strict types for typescript code.
@@ -176,3 +207,4 @@ or
 ### Backend Migration
 
 * Run `npm run typeorm:generate-migrations <NAME_OF_MIGRATION>` in the `backend` directory.
+* During development the schema is rebuilt from scratch: there is a single `Init` migration. After schema changes, regenerate it and rebuild the database with `npm run prune` and a new crawl instead of adding migrations.

@@ -1,7 +1,8 @@
+import { Table } from '@heroui/react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { PlayerSortField, SortOrder, useClients } from 'src/api';
-import { ArmyLink, PageHeader, Pagination, PlayerLink, QueryState, SearchInput, SortHeader } from 'src/components';
+import { ArmyLink, PageHeader, Pagination, PlayerLink, QueryState, SearchInput, SortableColumn } from 'src/components';
 import { useDateRange } from 'src/lib/date-range';
 import { formatPercent } from 'src/lib/format';
 import { useServerSort } from 'src/lib/sorting';
@@ -10,17 +11,19 @@ const PAGE_SIZE = 50;
 
 export function PlayersPage() {
   const clients = useClients();
-  const navigate = useNavigate();
   const { from, to } = useDateRange();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { sort, toggle } = useServerSort<PlayerSortField>({ key: 'events', order: 'desc' }, ['name']);
+  const { sort, order, sortDescriptor, onSortChange } = useServerSort<PlayerSortField>(
+    { column: 'events', direction: 'descending' },
+    ['name'],
+  );
 
   const search = searchParams.get('search') ?? '';
   const page = Number(searchParams.get('page') ?? 0);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['players', from, to, search, sort, page],
-    queryFn: () => clients.players.getPlayers(from, to, page, PAGE_SIZE, search || undefined, sort.order as SortOrder, sort.key),
+    queryKey: ['players', from, to, search, sort, order, page],
+    queryFn: () => clients.players.getPlayers(from, to, page, PAGE_SIZE, search || undefined, order as SortOrder, sort),
     placeholderData: keepPreviousData,
   });
 
@@ -49,50 +52,42 @@ export function PlayersPage() {
       <QueryState isLoading={isLoading} error={error} isEmpty={data?.total === 0} emptyText="No players match the search.">
         {data && (
           <>
-            <div className="panel overflow-x-auto">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <SortHeader sortKey="name" sort={sort} onSort={toggle}>
+            <Table>
+              <Table.ScrollContainer>
+                <Table.Content aria-label="Players" sortDescriptor={sortDescriptor} onSortChange={onSortChange}>
+                  <Table.Header>
+                    <SortableColumn id="name" isRowHeader>
                       Player
-                    </SortHeader>
-                    <th>Main army</th>
-                    <SortHeader sortKey="events" sort={sort} onSort={toggle}>
-                      Events
-                    </SortHeader>
-                    <SortHeader sortKey="wins" sort={sort} onSort={toggle}>
-                      Record
-                    </SortHeader>
-                    <SortHeader sortKey="winRate" sort={sort} onSort={toggle}>
-                      Win rate
-                    </SortHeader>
-                    <SortHeader sortKey="lastEvent" sort={sort} onSort={toggle}>
-                      Last event
-                    </SortHeader>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.items.map(({ id, name, mainArmy, events, wins, losses, winRate, lastEventDate }) => (
-                    <tr key={id} className="hover:bg-base-200 cursor-pointer" onClick={() => navigate(`/players/${id}`)}>
-                      <td className="font-semibold">
-                        <PlayerLink id={id}>{name}</PlayerLink>
-                      </td>
-                      <td>
-                        <ArmyLink army={mainArmy} />
-                      </td>
-                      <td>{events}</td>
-                      <td className="whitespace-nowrap tabular-nums">
-                        {wins}-{losses}
-                      </td>
-                      <td>
-                        {formatPercent(winRate)} <span className="text-base-content/70 text-xs">({wins + losses} games)</span>
-                      </td>
-                      <td className="whitespace-nowrap">{lastEventDate ?? '–'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                    </SortableColumn>
+                    <Table.Column>Main army</Table.Column>
+                    <SortableColumn id="events">Events</SortableColumn>
+                    <SortableColumn id="wins">Record</SortableColumn>
+                    <SortableColumn id="winRate">Win rate</SortableColumn>
+                    <SortableColumn id="lastEvent">Last event</SortableColumn>
+                  </Table.Header>
+                  <Table.Body>
+                    {data.items.map(({ id, name, mainArmy, events, wins, losses, winRate, lastEventDate }) => (
+                      <Table.Row key={id} id={id} href={`/players/${id}`} className="cursor-pointer">
+                        <Table.Cell className="font-semibold">
+                          <PlayerLink id={id}>{name}</PlayerLink>
+                        </Table.Cell>
+                        <Table.Cell>
+                          <ArmyLink army={mainArmy} />
+                        </Table.Cell>
+                        <Table.Cell>{events}</Table.Cell>
+                        <Table.Cell className="whitespace-nowrap tabular-nums">
+                          {wins}-{losses}
+                        </Table.Cell>
+                        <Table.Cell>
+                          {formatPercent(winRate)} <span className="text-muted text-xs">({wins + losses} games)</span>
+                        </Table.Cell>
+                        <Table.Cell className="whitespace-nowrap">{lastEventDate ?? '–'}</Table.Cell>
+                      </Table.Row>
+                    ))}
+                  </Table.Body>
+                </Table.Content>
+              </Table.ScrollContainer>
+            </Table>
 
             <Pagination page={page} pageSize={PAGE_SIZE} total={data.total} onChange={(next) => setParam('page', String(next))} />
           </>

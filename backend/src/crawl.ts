@@ -4,12 +4,14 @@ import { Logger, Module } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { CommandBus } from '@nestjs/cqrs';
 import { CoreModule } from './domain/database';
-import { DiscoverEvents, ImportEvent, ImportsModule, ReparseEvents } from './domain/imports';
+import { DiscoverEvents, ImportEvent, ImportsModule, ReparseEvents, UpdateCatalog } from './domain/imports';
 
 const USAGE = `Usage:
   npm run crawl -- --event <id> [--refresh]
   npm run crawl -- --from <YYYY-MM-DD> [--to <YYYY-MM-DD>] [--parallel <events>] [--refresh]
-  npm run crawl -- --reparse     re-parse all imported events from stored pages, without downloading`;
+  npm run crawl -- --reparse     re-parse all imported events from stored pages, without downloading
+  npm run crawl -- --catalog     load factions, armies and models from the wiki into the catalog file and import it
+  npm run crawl -- --catalog --reparse   the same, then re-parse all events so lists use the new catalog`;
 
 @Module({
   imports: [CoreModule, ImportsModule],
@@ -25,11 +27,12 @@ async function crawl() {
       refresh: { type: 'boolean', default: false },
       parallel: { type: 'string' },
       reparse: { type: 'boolean', default: false },
+      catalog: { type: 'boolean', default: false },
     },
   });
 
-  const { event, from, to, refresh, parallel, reparse } = values;
-  if (!event && !from && !reparse) {
+  const { event, from, to, refresh, parallel, reparse, catalog } = values;
+  if (!event && !from && !reparse && !catalog) {
     console.log(USAGE);
     process.exit(1);
   }
@@ -39,16 +42,23 @@ async function crawl() {
   const logger = new Logger('Crawler');
 
   try {
+    if (catalog) {
+      const { armies, models } = await commandBus.execute(new UpdateCatalog());
+      logger.log(`Imported ${armies} armies with ${models} models.`);
+    }
+
     if (reparse) {
       const { reparsed, failed } = await commandBus.execute(new ReparseEvents());
       logger.log(`Re-parsed ${reparsed} events, failed ${failed}.`);
-    } else if (event) {
+    }
+
+    if (event) {
       const { status, lists, games } = await commandBus.execute(new ImportEvent(parseInt(event, 10), refresh));
       logger.log(`Event ${event}: ${status}, ${lists} lists, ${games} games.`);
-    } else {
+    } else if (from) {
       const until = to ?? new Date().toISOString().substring(0, 10);
       const { found, imported, failed } = await commandBus.execute(
-        new DiscoverEvents(from!, until, refresh, parallel ? parseInt(parallel, 10) : undefined),
+        new DiscoverEvents(from, until, refresh, parallel ? parseInt(parallel, 10) : undefined),
       );
       logger.log(`Found ${found} events, imported ${imported}, failed ${failed}.`);
     }

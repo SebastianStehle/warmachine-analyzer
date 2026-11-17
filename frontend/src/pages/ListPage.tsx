@@ -4,6 +4,7 @@ import { Link, useParams } from 'react-router-dom';
 import { ListEntryKind, useClients } from 'src/api';
 import { ArmyLink, EventLink, PageHeader, PlayerLink, QueryState } from 'src/components';
 import { LONGSHANKS_URL } from 'src/lib/factions';
+import { usePreferences } from 'src/lib/preferences';
 
 const RESULT_BADGES: Record<string, string> = {
   win: 'badge-success',
@@ -14,11 +15,15 @@ const RESULT_BADGES: Record<string, string> = {
 export function ListPage() {
   const { id } = useParams();
   const clients = useClients();
+  const { showEquipment, setShowEquipment } = usePreferences();
 
   const { data, isLoading, error } = useQuery({
     queryKey: ['list', id],
     queryFn: () => clients.lists.getList(Number(id)),
   });
+
+  const hasEquipment = data?.entries.some(({ kind }) => kind === ListEntryKind.Module) ?? false;
+  const entries = (data?.entries ?? []).filter(({ kind }) => showEquipment || kind !== ListEntryKind.Module);
 
   return (
     <>
@@ -49,13 +54,25 @@ export function ListPage() {
 
             <div className="grid items-start gap-6 lg:grid-cols-2">
               <div className="panel p-5">
-                <div className="flex items-baseline justify-between">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <h2 className="text-xl font-semibold">List</h2>
                   <span className="text-base-content/80 text-sm">
                     {data.format}
                     {data.totalPoints !== null && ` · ${data.totalPoints}/${data.pointLevel ?? '?'} pts`}
                   </span>
                 </div>
+
+                {hasEquipment && (
+                  <label className="label mt-2 cursor-pointer gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      className="toggle toggle-sm toggle-primary"
+                      checked={showEquipment}
+                      onChange={(event) => setShowEquipment(event.target.checked)}
+                    />
+                    Show equipment
+                  </label>
+                )}
 
                 {data.warnings.length > 0 && (
                   <div role="alert" className="alert alert-warning mt-3">
@@ -65,13 +82,13 @@ export function ListPage() {
 
                 <table className="table-sm mt-2 table">
                   <tbody>
-                    {data.entries.map(({ name, points, depth, kind }, index) => (
+                    {entries.map(({ name, points, depth, kind }, index) => (
                       <tr key={index}>
                         <td style={{ paddingLeft: `${depth * 1.5 + 0.75}rem` }}>
                           <span
                             className={classNames({
                               'text-primary font-bold': kind === ListEntryKind.Leader,
-                              'text-base-content/80 text-sm': kind === ListEntryKind.Module,
+                              'text-base-content/80 italic': kind === ListEntryKind.Module,
                             })}
                           >
                             {name}

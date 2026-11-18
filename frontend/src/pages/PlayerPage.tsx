@@ -7,6 +7,7 @@ import { ArmyLink, EventLink, ListLink, PageHeader, QueryState, SearchInput, Sor
 import { LONGSHANKS_URL } from 'src/lib/factions';
 import { formatPercent } from 'src/lib/format';
 import { matchesSearch, useClientSort } from 'src/lib/sorting';
+import { texts } from 'src/texts';
 
 const PARTICIPATION_ACCESSORS = {
   date: (x: ParticipationDto) => x.eventDate,
@@ -46,7 +47,7 @@ export function PlayerPage() {
   return (
     <>
       <Breadcrumbs>
-        <Breadcrumbs.Item href="/players">Players</Breadcrumbs.Item>
+        <Breadcrumbs.Item href="/players">{texts.common.players}</Breadcrumbs.Item>
         <Breadcrumbs.Item>{data?.name ?? id}</Breadcrumbs.Item>
       </Breadcrumbs>
 
@@ -54,11 +55,11 @@ export function PlayerPage() {
         {data && (
           <>
             <PageHeader
-              kicker="Player"
+              kicker={texts.common.player}
               title={data.name}
               actions={
                 <>
-                  <Link href={`/lists?playerId=${data.id}`}>All lists</Link>
+                  <Link href={`/lists?playerId=${data.id}`}>{texts.players.allLists}</Link>
                   <Link href={`${LONGSHANKS_URL}/player/${data.id}/`} target="_blank" rel="noreferrer">
                     Longshanks
                     <Link.Icon />
@@ -68,24 +69,32 @@ export function PlayerPage() {
             />
 
             <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-              <StatTile label="Events" value={data.events} />
-              <StatTile label="Record" value={`${data.wins}-${data.losses}`} />
-              <StatTile label="Win rate" value={formatPercent(data.winRate)} detail={`${data.wins + data.losses} games`} />
-              <StatTile label="Best placing" value={bestRank ?? '–'} />
+              <StatTile label={texts.common.events} value={data.events} />
+              <StatTile label={texts.common.record} value={`${data.wins}-${data.losses}`} />
+              <StatTile
+                label={texts.common.winRate}
+                value={formatPercent(data.winRate)}
+                detail={texts.players.gameCount(data.wins + data.losses)}
+              />
+              <StatTile label={texts.players.bestPlacing} value={bestRank ?? '–'} />
             </div>
 
             <div className="grid items-start gap-6 lg:grid-cols-3">
               <Card>
-                <h2 className="text-xl font-semibold">Armies</h2>
+                <h2 className="text-xl font-semibold">{texts.common.armies}</h2>
                 <Table>
                   <Table.ScrollContainer>
-                    <Table.Content aria-label="Armies" sortDescriptor={armies.sortDescriptor} onSortChange={armies.onSortChange}>
+                    <Table.Content
+                      aria-label={texts.common.armies}
+                      sortDescriptor={armies.sortDescriptor}
+                      onSortChange={armies.onSortChange}
+                    >
                       <Table.Header>
                         <SortableColumn id="army" isRowHeader>
-                          Army
+                          {texts.common.army}
                         </SortableColumn>
-                        <SortableColumn id="events">Events</SortableColumn>
-                        <SortableColumn id="winRate">Win rate</SortableColumn>
+                        <SortableColumn id="events">{texts.common.events}</SortableColumn>
+                        <SortableColumn id="winRate">{texts.common.winRate}</SortableColumn>
                       </Table.Header>
                       <Table.Body>
                         {armies.sorted.map(({ army, faction, events: count, wins, losses, winRate }) => (
@@ -95,7 +104,8 @@ export function PlayerPage() {
                             </Table.Cell>
                             <Table.Cell>{count}</Table.Cell>
                             <Table.Cell className="whitespace-nowrap">
-                              {formatPercent(winRate)} <span className="text-muted text-xs">({wins + losses} games)</span>
+                              {formatPercent(winRate)}{' '}
+                              <span className="text-muted text-xs">({texts.players.gameCount(wins + losses)})</span>
                             </Table.Cell>
                           </Table.Row>
                         ))}
@@ -107,20 +117,24 @@ export function PlayerPage() {
 
               <Card className="lg:col-span-2">
                 <div className="flex items-center justify-between">
-                  <h2 className="text-xl font-semibold">Events</h2>
-                  <SearchInput value={search} onChange={setSearch} placeholder="Search event, army, caster" />
+                  <h2 className="text-xl font-semibold">{texts.common.events}</h2>
+                  <SearchInput value={search} onChange={setSearch} placeholder={texts.players.searchEventsPlaceholder} />
                 </div>
                 <Table>
                   <Table.ScrollContainer>
-                    <Table.Content aria-label="Events" sortDescriptor={events.sortDescriptor} onSortChange={events.onSortChange}>
+                    <Table.Content
+                      aria-label={texts.common.events}
+                      sortDescriptor={events.sortDescriptor}
+                      onSortChange={events.onSortChange}
+                    >
                       <Table.Header>
-                        <SortableColumn id="date">Date</SortableColumn>
+                        <SortableColumn id="date">{texts.common.date}</SortableColumn>
                         <SortableColumn id="event" isRowHeader>
-                          Event
+                          {texts.common.event}
                         </SortableColumn>
-                        <SortableColumn id="rank">Placing</SortableColumn>
-                        <SortableColumn id="army">Army</SortableColumn>
-                        <Table.Column>Lists</Table.Column>
+                        <SortableColumn id="rank">{texts.common.placing}</SortableColumn>
+                        <SortableColumn id="army">{texts.common.army}</SortableColumn>
+                        <Table.Column>{texts.common.lists}</Table.Column>
                       </Table.Header>
                       <Table.Body>
                         {events.sorted.map((participation) => (
@@ -130,7 +144,8 @@ export function PlayerPage() {
                               <EventLink id={participation.eventId}>{participation.eventName}</EventLink>
                             </Table.Cell>
                             <Table.Cell className="whitespace-nowrap">
-                              {participation.rank} <span className="text-muted text-xs">of {participation.eventPlayers}</span>
+                              {participation.rank}{' '}
+                              <span className="text-muted text-xs">{texts.common.ofPlayers(participation.eventPlayers)}</span>
                               <div className="text-muted text-xs tabular-nums">
                                 {participation.wins}-{participation.losses}
                               </div>
@@ -142,7 +157,7 @@ export function PlayerPage() {
                               <div className="flex flex-col">
                                 {participation.lists.map(({ id: listId, caster }) => (
                                   <ListLink key={listId} id={listId}>
-                                    {caster ?? 'List'}
+                                    {caster ?? texts.common.list}
                                   </ListLink>
                                 ))}
                                 {participation.lists.length === 0 && '–'}

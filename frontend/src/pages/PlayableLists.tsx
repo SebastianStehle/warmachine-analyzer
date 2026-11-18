@@ -6,6 +6,7 @@ import { ArmyLink, CasterLink, EventLink, MultiSelect, Pagination, PlayerLink, Q
 import { useListPrices, useOwnedProducts } from 'src/lib/collection';
 import { useDateRange } from 'src/lib/date-range';
 import { formatPrice } from 'src/lib/format';
+import { texts } from 'src/texts';
 
 const PAGE_SIZE = 50;
 
@@ -44,10 +45,8 @@ export function PlayableLists() {
       <Alert>
         <Alert.Indicator />
         <Alert.Content>
-          <Alert.Title>Add the products you own first.</Alert.Title>
-          <Alert.Description>
-            Then this tab shows which tournament lists you can build and what the rest would cost.
-          </Alert.Description>
+          <Alert.Title>{texts.collection.playableListsTitle}</Alert.Title>
+          <Alert.Description>{texts.collection.playableListsDescription}</Alert.Description>
         </Alert.Content>
       </Alert>
     );
@@ -56,15 +55,15 @@ export function PlayableLists() {
   return (
     <div className="flex flex-col gap-4">
       <div className="grid gap-4 sm:grid-cols-2">
-        <StatTile label="Lists you can build" value={data?.playable ?? '–'} />
-        <StatTile label="Lists checked" value={data?.total ?? '–'} />
+        <StatTile label={texts.collection.listsYouCanBuild} value={data?.playable ?? '–'} />
+        <StatTile label={texts.collection.listsChecked} value={data?.total ?? '–'} />
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
         <MultiSelect
           options={factions?.items.map(({ army }) => army) ?? []}
           selected={armies}
-          placeholder="All armies"
+          placeholder={texts.common.allArmies}
           onChange={(selected) => {
             setArmies(selected);
             setPage(0);
@@ -72,20 +71,20 @@ export function PlayableLists() {
         />
       </div>
 
-      <QueryState isLoading={isLoading} error={error} isEmpty={data?.total === 0} emptyText="No lists match the filter.">
+      <QueryState isLoading={isLoading} error={error} isEmpty={data?.total === 0} emptyText={texts.common.noListsMatch}>
         {data && (
           <>
             <Table>
               <Table.ScrollContainer>
-                <Table.Content aria-label="Playable lists">
+                <Table.Content aria-label={texts.collection.playableLists}>
                   <Table.Header>
-                    <Table.Column>Missing</Table.Column>
-                    <Table.Column>Army</Table.Column>
-                    <Table.Column isRowHeader>Caster</Table.Column>
-                    <Table.Column>Player</Table.Column>
-                    <Table.Column>Placing</Table.Column>
-                    <Table.Column>Event</Table.Column>
-                    <Table.Column>Price left</Table.Column>
+                    <Table.Column>{texts.collection.missing}</Table.Column>
+                    <Table.Column>{texts.common.army}</Table.Column>
+                    <Table.Column isRowHeader>{texts.common.caster}</Table.Column>
+                    <Table.Column>{texts.common.player}</Table.Column>
+                    <Table.Column>{texts.common.placing}</Table.Column>
+                    <Table.Column>{texts.common.event}</Table.Column>
+                    <Table.Column>{texts.common.priceLeft}</Table.Column>
                   </Table.Header>
                   <Table.Body>
                     {data.items.map((list) => (
@@ -93,10 +92,10 @@ export function PlayableLists() {
                         <Table.Cell className="whitespace-nowrap">
                           {list.missingModels === 0 ? (
                             <Chip size="sm" color="success" variant="soft">
-                              Ready
+                              {texts.collection.ready}
                             </Chip>
                           ) : (
-                            `${list.missingModels} ${list.missingModels === 1 ? 'model' : 'models'}`
+                            texts.collection.missingModels(list.missingModels)
                           )}
                         </Table.Cell>
                         <Table.Cell>
@@ -110,7 +109,7 @@ export function PlayableLists() {
                         </Table.Cell>
                         <Table.Cell className="whitespace-nowrap">
                           {list.rank ?? '–'}
-                          <span className="text-muted text-xs"> of {list.eventPlayers}</span>
+                          <span className="text-muted text-xs"> {texts.common.ofPlayers(list.eventPlayers)}</span>
                         </Table.Cell>
                         <Table.Cell>
                           <EventLink id={list.eventId}>{list.eventName}</EventLink>{' '}

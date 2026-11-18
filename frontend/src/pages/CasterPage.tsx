@@ -21,6 +21,7 @@ import { useDateRange } from 'src/lib/date-range';
 import { listsLink } from 'src/lib/links';
 import { useClientSort } from 'src/lib/sorting';
 import { useTabParam } from 'src/lib/tabs';
+import { texts } from 'src/texts';
 
 const TOP_LISTS = 10;
 
@@ -41,13 +42,13 @@ function OpponentCastersTable({ casters }: { casters: OpponentCasterStatsDto[] }
   return (
     <Table>
       <Table.ScrollContainer>
-        <Table.Content aria-label="Opposing casters" sortDescriptor={sortDescriptor} onSortChange={onSortChange}>
+        <Table.Content aria-label={texts.casters.opposingCasters} sortDescriptor={sortDescriptor} onSortChange={onSortChange}>
           <Table.Header>
             <SortableColumn id="caster" isRowHeader>
-              Against
+              {texts.common.against}
             </SortableColumn>
-            <SortableColumn id="winRate">Win rate</SortableColumn>
-            <SortableColumn id="games">W / L / D</SortableColumn>
+            <SortableColumn id="winRate">{texts.common.winRate}</SortableColumn>
+            <SortableColumn id="games">{texts.common.winsLossesDraws}</SortableColumn>
           </Table.Header>
           <Table.Body>
             {sorted.map(({ caster, games, wins, losses, draws, winRate }) => (
@@ -81,25 +82,25 @@ function TopLists({ caster }: { caster: string }) {
   });
 
   return (
-    <QueryState isLoading={isLoading} error={error} isEmpty={data?.total === 0} emptyText="No lists with this caster yet.">
+    <QueryState isLoading={isLoading} error={error} isEmpty={data?.total === 0} emptyText={texts.casters.noLists}>
       {data && (
         <div className="flex flex-col gap-3">
           <Table>
             <Table.ScrollContainer>
-              <Table.Content aria-label="Top lists">
+              <Table.Content aria-label={texts.casters.topLists}>
                 <Table.Header>
-                  <Table.Column>Placing</Table.Column>
-                  <Table.Column isRowHeader>Player</Table.Column>
-                  <Table.Column>Army</Table.Column>
-                  <Table.Column>Event</Table.Column>
-                  <Table.Column>Played</Table.Column>
+                  <Table.Column>{texts.common.placing}</Table.Column>
+                  <Table.Column isRowHeader>{texts.common.player}</Table.Column>
+                  <Table.Column>{texts.common.army}</Table.Column>
+                  <Table.Column>{texts.common.event}</Table.Column>
+                  <Table.Column>{texts.common.played}</Table.Column>
                 </Table.Header>
                 <Table.Body>
                   {data.items.map((list) => (
                     <Table.Row key={list.id} id={list.id} href={`/lists/${list.id}`} className="cursor-pointer">
                       <Table.Cell className="whitespace-nowrap">
                         {list.rank ?? '–'}
-                        <span className="text-muted text-xs"> of {list.eventPlayers}</span>
+                        <span className="text-muted text-xs"> {texts.common.ofPlayers(list.eventPlayers)}</span>
                       </Table.Cell>
                       <Table.Cell>
                         <PlayerLink id={list.playerId}>{list.playerName}</PlayerLink>
@@ -112,7 +113,7 @@ function TopLists({ caster }: { caster: string }) {
                         <span className="text-muted text-xs whitespace-nowrap">({list.eventDate})</span>
                       </Table.Cell>
                       <Table.Cell className="whitespace-nowrap">
-                        {list.games > 0 ? `${list.wins} of ${list.games} won` : '–'}
+                        {list.games > 0 ? texts.common.wonOf(list.wins, list.games) : '–'}
                       </Table.Cell>
                     </Table.Row>
                   ))}
@@ -121,7 +122,7 @@ function TopLists({ caster }: { caster: string }) {
             </Table.ScrollContainer>
           </Table>
 
-          <Link href={listsLink({ caster, sort: 'rank', order: 'asc' })}>All {data.total} lists, best placing first</Link>
+          <Link href={listsLink({ caster, sort: 'rank', order: 'asc' })}>{texts.casters.allListsBestFirst(data.total)}</Link>
         </div>
       )}
     </QueryState>
@@ -142,7 +143,7 @@ export function CasterPage() {
   return (
     <>
       <Breadcrumbs>
-        <Breadcrumbs.Item href="/factions">Factions</Breadcrumbs.Item>
+        <Breadcrumbs.Item href="/factions">{texts.common.factions}</Breadcrumbs.Item>
         {data && data.armies.length > 0 && (
           <Breadcrumbs.Item href={`/factions/${encodeURIComponent(data.armies[0].army)}`}>{data.armies[0].army}</Breadcrumbs.Item>
         )}
@@ -153,19 +154,19 @@ export function CasterPage() {
         {data && (
           <>
             <PageHeader
-              kicker="Caster"
+              kicker={texts.common.caster}
               title={data.caster}
               image={data.imageUrl}
               description={<WikiLink page={data.wikiPage} />}
-              actions={<Link href={listsLink({ caster })}>All lists with this caster</Link>}
+              actions={<Link href={listsLink({ caster })}>{texts.casters.allLists}</Link>}
             />
 
             <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-              <StatTile label="Lists" value={<Link href={listsLink({ caster })}>{data.lists}</Link>} />
-              <StatTile label="Win rate" value={<WinRate winRate={data.stats.winRate} games={data.stats.games} />} />
-              <StatTile label="Record" value={`${data.stats.wins} / ${data.stats.losses} / ${data.stats.draws}`} />
+              <StatTile label={texts.common.lists} value={<Link href={listsLink({ caster })}>{data.lists}</Link>} />
+              <StatTile label={texts.common.winRate} value={<WinRate winRate={data.stats.winRate} games={data.stats.games} />} />
+              <StatTile label={texts.common.record} value={`${data.stats.wins} / ${data.stats.losses} / ${data.stats.draws}`} />
               <StatTile
-                label="Armies"
+                label={texts.common.armies}
                 value={data.armies.length}
                 detail={data.armies.map(({ army }) => army).join(', ') || undefined}
               />
@@ -174,25 +175,25 @@ export function CasterPage() {
             <Card>
               <Tabs {...tabs}>
                 <Tabs.ListContainer>
-                  <Tabs.List aria-label="Details" className="w-fit">
+                  <Tabs.List aria-label={texts.common.details} className="w-fit">
                     <Tabs.Tab id="units" className="font-display tracking-wide uppercase">
-                      Models & units
+                      {texts.common.modelStats.unitsTab}
                       <Tabs.Indicator />
                     </Tabs.Tab>
                     <Tabs.Tab id="impact" className="font-display tracking-wide uppercase">
-                      Model impact
+                      {texts.common.modelStats.impactTab}
                       <Tabs.Indicator />
                     </Tabs.Tab>
                     <Tabs.Tab id="matchups" className="font-display tracking-wide uppercase">
-                      Matchups
+                      {texts.common.matchups}
                       <Tabs.Indicator />
                     </Tabs.Tab>
                     <Tabs.Tab id="casters" className="font-display tracking-wide uppercase">
-                      Vs casters
+                      {texts.casters.vsCasters}
                       <Tabs.Indicator />
                     </Tabs.Tab>
                     <Tabs.Tab id="lists" className="font-display tracking-wide uppercase">
-                      Top lists
+                      {texts.casters.topLists}
                       <Tabs.Indicator />
                     </Tabs.Tab>
                   </Tabs.List>

@@ -6,6 +6,7 @@ import { FactionStatsDto, useClients } from 'src/api';
 import { ArmyLink, PageHeader, QueryState, SearchInput, Share, SortableColumn, StatTile, WinRate } from 'src/components';
 import { useDateRange } from 'src/lib/date-range';
 import { matchesSearch, useClientSort } from 'src/lib/sorting';
+import { texts } from 'src/texts';
 
 const SORT_ACCESSORS = {
   army: (x: FactionStatsDto) => x.army,
@@ -47,33 +48,33 @@ export function FactionsPage() {
   return (
     <>
       <PageHeader
-        kicker="Meta overview"
-        title="Factions"
-        description="Share of players, submitted lists and win rates per army. Win rates leave out byes and mirror matches, rates from fewer than 10 games are faded."
-        actions={<SearchInput value={search} onChange={setSearch} placeholder="Search armies" />}
+        kicker={texts.factions.kicker}
+        title={texts.common.factions}
+        description={texts.factions.description}
+        actions={<SearchInput value={search} onChange={setSearch} placeholder={texts.factions.searchArmies} />}
       />
 
       <QueryState isLoading={isLoading} error={error} isEmpty={items.length === 0}>
         <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-          <StatTile label="Armies" value={items.length} />
-          <StatTile label="Players" value={totalPlayers} detail="Event participations" />
-          <StatTile label="Lists" value={totalLists} />
-          <StatTile label="Games" value={Math.round(totalGames)} />
+          <StatTile label={texts.common.armies} value={items.length} />
+          <StatTile label={texts.common.players} value={totalPlayers} detail={texts.factions.eventParticipations} />
+          <StatTile label={texts.common.lists} value={totalLists} />
+          <StatTile label={texts.common.games} value={Math.round(totalGames)} />
         </div>
 
         <Table>
           <Table.ScrollContainer>
-            <Table.Content aria-label="Armies" sortDescriptor={sortDescriptor} onSortChange={onSortChange}>
+            <Table.Content aria-label={texts.common.armies} sortDescriptor={sortDescriptor} onSortChange={onSortChange}>
               <Table.Header>
                 <SortableColumn id="army" isRowHeader>
-                  Army
+                  {texts.common.army}
                 </SortableColumn>
-                <SortableColumn id="faction">Faction</SortableColumn>
-                <SortableColumn id="players">Share of players</SortableColumn>
-                <SortableColumn id="lists">Lists</SortableColumn>
-                <SortableColumn id="winRate">Win rate</SortableColumn>
-                <SortableColumn id="games">W / L / D</SortableColumn>
-                <SortableColumn id="mirrors">Mirrors</SortableColumn>
+                <SortableColumn id="faction">{texts.common.faction}</SortableColumn>
+                <SortableColumn id="players">{texts.factions.shareOfPlayers}</SortableColumn>
+                <SortableColumn id="lists">{texts.common.lists}</SortableColumn>
+                <SortableColumn id="winRate">{texts.common.winRate}</SortableColumn>
+                <SortableColumn id="games">{texts.common.winsLossesDraws}</SortableColumn>
+                <SortableColumn id="mirrors">{texts.factions.mirrors}</SortableColumn>
               </Table.Header>
               <Table.Body>
                 {sorted.map(({ army, faction, players, lists, games, wins, losses, draws, winRate, mirrors }) => (

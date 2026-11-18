@@ -6,6 +6,7 @@ import { GameResult, ListEntryKind, useClients } from 'src/api';
 import { ArmyLink, EventLink, ListProducts, ModelTypeBadge, PageHeader, PlayerLink, QueryState, WikiLink } from 'src/components';
 import { LONGSHANKS_URL } from 'src/lib/factions';
 import { usePreferences } from 'src/lib/preferences';
+import { texts } from 'src/texts';
 
 const RESULT_COLORS: Record<GameResult, 'success' | 'danger' | 'default'> = {
   win: 'success',
@@ -29,7 +30,7 @@ export function ListPage() {
   return (
     <>
       <Breadcrumbs>
-        <Breadcrumbs.Item href="/lists">Lists</Breadcrumbs.Item>
+        <Breadcrumbs.Item href="/lists">{texts.common.lists}</Breadcrumbs.Item>
         <Breadcrumbs.Item>{data?.title ?? id}</Breadcrumbs.Item>
       </Breadcrumbs>
 
@@ -42,10 +43,10 @@ export function ListPage() {
               image={data.casterImageUrl}
               description={
                 <>
-                  “{data.title}” by <PlayerLink id={data.playerId}>{data.playerName}</PlayerLink> at{' '}
-                  <EventLink id={data.eventId}>{data.eventName}</EventLink> ({data.eventDate}) · placed {data.rank ?? '–'} of{' '}
-                  {data.eventPlayers}
-                  {data.eventWins !== null && `, ${data.eventWins}-${data.eventLosses} overall`}
+                  “{data.title}” {texts.lists.by} <PlayerLink id={data.playerId}>{data.playerName}</PlayerLink> {texts.lists.at}{' '}
+                  <EventLink id={data.eventId}>{data.eventName}</EventLink> ({data.eventDate}) ·{' '}
+                  {texts.lists.placed(data.rank ?? '–', data.eventPlayers)}
+                  {data.eventWins !== null && `, ${texts.lists.overall(data.eventWins, data.eventLosses)}`}
                 </>
               }
             />
@@ -53,10 +54,10 @@ export function ListPage() {
             <div className="grid items-start gap-6 lg:grid-cols-2">
               <Card>
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <h2 className="text-xl font-semibold">List</h2>
+                  <h2 className="text-xl font-semibold">{texts.common.list}</h2>
                   <span className="text-muted text-sm">
                     {data.format}
-                    {data.totalPoints !== null && ` · ${data.totalPoints}/${data.pointLevel ?? '?'} pts`}
+                    {data.totalPoints !== null && ` · ${texts.lists.listPoints(data.totalPoints, data.pointLevel ?? '?')}`}
                   </span>
                 </div>
 
@@ -66,7 +67,7 @@ export function ListPage() {
                       <Switch.Control>
                         <Switch.Thumb />
                       </Switch.Control>
-                      Show equipment
+                      {texts.lists.showEquipment}
                     </Switch.Content>
                   </Switch>
                 )}
@@ -105,12 +106,14 @@ export function ListPage() {
                   ))}
                 </ul>
 
-                {data.commandCards.length > 0 && <p className="mt-3 text-sm">Command cards: {data.commandCards.join(', ')}</p>}
+                {data.commandCards.length > 0 && (
+                  <p className="mt-3 text-sm">{texts.lists.commandCards(data.commandCards.join(', '))}</p>
+                )}
 
                 <Disclosure>
                   <Disclosure.Heading>
                     <Button slot="trigger" size="sm" variant="secondary">
-                      List as submitted
+                      {texts.lists.listAsSubmitted}
                       <Disclosure.Indicator />
                     </Button>
                   </Disclosure.Heading>
@@ -127,7 +130,7 @@ export function ListPage() {
 
                 <Card>
                   <div className="flex items-baseline justify-between">
-                    <h2 className="text-xl font-semibold">Games played with this list</h2>
+                    <h2 className="text-xl font-semibold">{texts.lists.gamesPlayed}</h2>
                     <Link className="text-sm" href={`${LONGSHANKS_URL}/event/${data.eventId}/`} target="_blank" rel="noreferrer">
                       Longshanks
                       <Link.Icon />
@@ -135,24 +138,24 @@ export function ListPage() {
                   </div>
 
                   {data.playedGames.length === 0 ? (
-                    <p className="mt-2 text-sm">No games could be linked to this list.</p>
+                    <p className="mt-2 text-sm">{texts.lists.noLinkedGames}</p>
                   ) : (
                     <Table>
                       <Table.ScrollContainer>
-                        <Table.Content aria-label="Games played with this list">
+                        <Table.Content aria-label={texts.lists.gamesPlayed}>
                           <Table.Header>
-                            <Table.Column>Round</Table.Column>
-                            <Table.Column isRowHeader>Opponent</Table.Column>
-                            <Table.Column>Scenario</Table.Column>
-                            <Table.Column>Result</Table.Column>
-                            <Table.Column>CP / AP</Table.Column>
+                            <Table.Column>{texts.lists.round}</Table.Column>
+                            <Table.Column isRowHeader>{texts.common.opponent}</Table.Column>
+                            <Table.Column>{texts.lists.scenario}</Table.Column>
+                            <Table.Column>{texts.lists.result}</Table.Column>
+                            <Table.Column>{texts.lists.controlAndArmyPoints}</Table.Column>
                           </Table.Header>
                           <Table.Body>
                             {data.playedGames.map((game) => (
                               <Table.Row key={game.round} id={game.round}>
                                 <Table.Cell>{game.round}</Table.Cell>
                                 <Table.Cell>
-                                  <PlayerLink id={game.opponentId}>{game.opponentName ?? 'Bye'}</PlayerLink>
+                                  <PlayerLink id={game.opponentId}>{game.opponentName ?? texts.lists.bye}</PlayerLink>
                                   {game.opponentArmy && (
                                     <div className="text-muted text-xs">
                                       {game.opponentArmy}
@@ -163,7 +166,7 @@ export function ListPage() {
                                 <Table.Cell>{game.scenario ?? '–'}</Table.Cell>
                                 <Table.Cell>
                                   <Chip size="sm" color={RESULT_COLORS[game.result]}>
-                                    {game.result}
+                                    {texts.lists.results[game.result]}
                                   </Chip>
                                 </Table.Cell>
                                 <Table.Cell className="whitespace-nowrap tabular-nums">

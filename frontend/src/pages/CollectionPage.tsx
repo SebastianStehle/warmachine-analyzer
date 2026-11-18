@@ -6,6 +6,7 @@ import { PageHeader, Pagination, QueryState, SearchInput, StatTile } from 'src/c
 import { useCollection } from 'src/lib/collection';
 import { formatPrice } from 'src/lib/format';
 import { useTabParam } from 'src/lib/tabs';
+import { texts } from 'src/texts';
 import { PlayableLists } from './PlayableLists';
 
 // The shop has several hundred products, rendering all of them makes every change of a quantity slow.
@@ -20,7 +21,7 @@ const OwnedField = memo(function OwnedField({ shopId, title }: { shopId: string;
 
   return (
     <NumberField
-      aria-label={`Owned ${title}`}
+      aria-label={texts.collection.ownedProduct(title)}
       minValue={0}
       value={quantity}
       onChange={(value) => setQuantity(shopId, Number.isNaN(value) ? 0 : value)}
@@ -46,9 +47,9 @@ function CollectionStats({ products, currency }: { products: ShopProductDto[]; c
 
   return (
     <div className="grid gap-4 sm:grid-cols-3">
-      <StatTile label="Products" value={ownedProducts.length} />
-      <StatTile label="Models" value={ownedModels} />
-      <StatTile label="Value" value={formatPrice(ownedValue, currency)} />
+      <StatTile label={texts.common.products} value={ownedProducts.length} />
+      <StatTile label={texts.collection.models} value={ownedModels} />
+      <StatTile label={texts.collection.value} value={formatPrice(ownedValue, currency)} />
     </div>
   );
 }
@@ -87,21 +88,17 @@ export function CollectionPage() {
 
   return (
     <>
-      <PageHeader
-        kicker="Your models"
-        title="Collection"
-        description="Add the products you already own. The lists then only show the price of the products you still need, and you see which lists you can already build. The collection is only stored in this browser."
-      />
+      <PageHeader kicker={texts.collection.kicker} title={texts.common.collection} description={texts.collection.description} />
 
       <Tabs {...tabs}>
         <Tabs.ListContainer>
-          <Tabs.List aria-label="Collection" className="w-fit">
+          <Tabs.List aria-label={texts.common.collection} className="w-fit">
             <Tabs.Tab id="products" className="font-display tracking-wide uppercase">
-              Products
+              {texts.common.products}
               <Tabs.Indicator />
             </Tabs.Tab>
             <Tabs.Tab id="playable" className="font-display tracking-wide uppercase">
-              Playable lists
+              {texts.collection.playableLists}
               <Tabs.Indicator />
             </Tabs.Tab>
           </Tabs.List>
@@ -116,7 +113,7 @@ export function CollectionPage() {
                 setSearch(value);
                 setPage(0);
               }}
-              placeholder="Search product or model"
+              placeholder={texts.collection.searchPlaceholder}
             />
 
             <Switch
@@ -130,13 +127,13 @@ export function CollectionPage() {
                 <Switch.Control>
                   <Switch.Thumb />
                 </Switch.Control>
-                Only owned products
+                {texts.collection.onlyOwned}
               </Switch.Content>
             </Switch>
 
             {hasOwned && (
               <Button size="sm" variant="ghost" onPress={clear}>
-                Remove all
+                {texts.collection.removeAll}
               </Button>
             )}
           </div>
@@ -145,20 +142,16 @@ export function CollectionPage() {
             isLoading={isLoading}
             error={error}
             isEmpty={visible.length === 0}
-            emptyText={
-              products.length === 0
-                ? 'No products yet. Import the shop with npm run crawl -- --shop.'
-                : 'No products match the filter.'
-            }
+            emptyText={products.length === 0 ? texts.collection.noProducts : texts.collection.noProductsMatch}
           >
             <Table>
               <Table.ScrollContainer>
-                <Table.Content aria-label="Products">
+                <Table.Content aria-label={texts.common.products}>
                   <Table.Header>
-                    <Table.Column isRowHeader>Product</Table.Column>
-                    <Table.Column>Models</Table.Column>
-                    <Table.Column>Price</Table.Column>
-                    <Table.Column>Owned</Table.Column>
+                    <Table.Column isRowHeader>{texts.common.product}</Table.Column>
+                    <Table.Column>{texts.collection.models}</Table.Column>
+                    <Table.Column>{texts.common.price}</Table.Column>
+                    <Table.Column>{texts.collection.owned}</Table.Column>
                   </Table.Header>
                   <Table.Body>
                     {pageItems.map((product) => (
@@ -179,7 +172,7 @@ export function CollectionPage() {
                             </Link>
                             {!product.available && (
                               <Chip size="sm" color="warning" variant="soft">
-                                Sold out
+                                {texts.common.soldOut}
                               </Chip>
                             )}
                           </div>

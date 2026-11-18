@@ -1,15 +1,7 @@
 import { ModelType } from 'src/api';
+import { texts } from 'src/texts';
 
-export const MODEL_TYPE_LABELS: Record<ModelType, string> = {
-  leader: 'Leader',
-  warjack: 'Warjack',
-  warbeast: 'Warbeast',
-  'battle-engine': 'Battle engine',
-  solo: 'Solo',
-  unit: 'Unit',
-  attachment: 'Attachment',
-  structure: 'Structure',
-};
+export const MODEL_TYPE_LABELS: Record<ModelType, string> = texts.common.modelTypes;
 
 const WIKI_URL = 'https://warmachineacademy.miraheze.org/wiki/';
 

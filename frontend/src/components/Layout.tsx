@@ -1,16 +1,17 @@
 import { useEffect, useRef } from 'react';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useDateRangeSync } from 'src/lib/date-range';
+import { texts } from 'src/texts';
 import { DateRangeFilter } from './DateRangeFilter';
 
 const NAVIGATION = [
-  { to: '/factions', label: 'Factions' },
-  { to: '/matchups', label: 'Matchups' },
-  { to: '/lists', label: 'Lists' },
-  { to: '/players', label: 'Players' },
-  { to: '/events', label: 'Events' },
-  { to: '/collection', label: 'Collection' },
-  { to: '/unmatched', label: 'Unmatched' },
+  { to: '/factions', label: texts.common.factions },
+  { to: '/matchups', label: texts.common.matchups },
+  { to: '/lists', label: texts.common.lists },
+  { to: '/players', label: texts.common.players },
+  { to: '/events', label: texts.common.events },
+  { to: '/collection', label: texts.common.collection },
+  { to: '/unmatched', label: texts.common.unmatched },
 ];
 
 function Cog() {
@@ -39,7 +40,7 @@ export function Layout() {
           <NavLink to="/factions" className="flex items-center gap-2">
             <Cog />
             <span className="font-display text-xl leading-none font-bold tracking-wide uppercase">
-              Warmachine <span className="text-accent">Analyzer</span>
+              {texts.common.appNameStart} <span className="text-accent">{texts.common.appNameEnd}</span>
             </span>
           </NavLink>
 

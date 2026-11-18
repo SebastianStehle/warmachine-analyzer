@@ -1,6 +1,7 @@
 import type { Key } from '@heroui/react';
 import { Autocomplete, EmptyState, Header, ListBox, SearchField, Separator, useFilter } from '@heroui/react';
 import { Fragment } from 'react';
+import { texts } from 'src/texts';
 
 export interface MultiSelectGroup {
   label: string;
@@ -63,14 +64,14 @@ export function MultiSelect({ options, selected, placeholder, onChange }: MultiS
       </Autocomplete.Trigger>
       <Autocomplete.Popover>
         <Autocomplete.Filter filter={contains}>
-          <SearchField autoFocus aria-label="Search" name="search" variant="secondary">
+          <SearchField autoFocus aria-label={texts.common.search} name="search" variant="secondary">
             <SearchField.Group>
               <SearchField.SearchIcon />
-              <SearchField.Input placeholder="Search" />
+              <SearchField.Input placeholder={texts.common.search} />
               <SearchField.ClearButton />
             </SearchField.Group>
           </SearchField>
-          <ListBox renderEmptyState={() => <EmptyState>No results found</EmptyState>}>
+          <ListBox renderEmptyState={() => <EmptyState>{texts.common.noResults}</EmptyState>}>
             {groups.map(({ label, options: values }, index) => (
               <Fragment key={label || 'ungrouped'}>
                 {index > 0 && <Separator />}

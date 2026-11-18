@@ -1,5 +1,6 @@
 import classNames from 'classnames';
 import { formatPercent } from 'src/lib/format';
+import { texts } from 'src/texts';
 
 // Below this number of games a win rate says very little.
 export const MIN_RELIABLE_GAMES = 10;
@@ -17,7 +18,7 @@ export function WinRate({ winRate, games }: WinRateProps) {
   return (
     <span
       className={classNames('whitespace-nowrap', { 'opacity-60': !isReliable })}
-      title={isReliable ? undefined : `Only ${games} games, treat with care.`}
+      title={isReliable ? undefined : texts.common.onlyGames(games)}
     >
       <span
         className={classNames('font-semibold', {
@@ -27,7 +28,7 @@ export function WinRate({ winRate, games }: WinRateProps) {
       >
         {formatPercent(winRate)}
       </span>{' '}
-      <span className="text-muted text-xs">({games === 1 ? '1 game' : `${games} games`})</span>
+      <span className="text-muted text-xs">({texts.common.gameCount(games)})</span>
     </span>
   );
 }

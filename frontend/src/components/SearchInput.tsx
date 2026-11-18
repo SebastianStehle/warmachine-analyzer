@@ -1,6 +1,7 @@
 import { SearchField } from '@heroui/react';
 import { useEffect, useState } from 'react';
 import { useDebouncedCallback } from 'use-debounce';
+import { texts } from 'src/texts';
 
 const DEBOUNCE_MS = 300;
 
@@ -21,7 +22,7 @@ export function SearchInput({ value, placeholder, onChange }: SearchInputProps) 
 
   return (
     <SearchField
-      aria-label={placeholder ?? 'Search'}
+      aria-label={placeholder ?? texts.common.search}
       className="w-full sm:w-72"
       value={text}
       onChange={(next) => {
@@ -31,7 +32,7 @@ export function SearchInput({ value, placeholder, onChange }: SearchInputProps) 
     >
       <SearchField.Group>
         <SearchField.SearchIcon />
-        <SearchField.Input placeholder={placeholder ?? 'Search'} />
+        <SearchField.Input placeholder={placeholder ?? texts.common.search} />
         <SearchField.ClearButton />
       </SearchField.Group>
     </SearchField>

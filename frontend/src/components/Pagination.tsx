@@ -1,4 +1,5 @@
 import { Pagination as HeroPagination } from '@heroui/react';
+import { texts } from 'src/texts';
 
 export interface PaginationProps {
   page: number;
@@ -13,19 +14,17 @@ export function Pagination({ page, pageSize, total, onChange }: PaginationProps)
 
   return (
     <HeroPagination className="w-full">
-      <HeroPagination.Summary>
-        {total} results, page {page + 1} of {pages}
-      </HeroPagination.Summary>
+      <HeroPagination.Summary>{texts.common.pagination(total, page + 1, pages)}</HeroPagination.Summary>
       <HeroPagination.Content>
         <HeroPagination.Item>
           <HeroPagination.Previous isDisabled={page <= 0} onPress={() => onChange(page - 1)}>
             <HeroPagination.PreviousIcon />
-            <span>Previous</span>
+            <span>{texts.common.previous}</span>
           </HeroPagination.Previous>
         </HeroPagination.Item>
         <HeroPagination.Item>
           <HeroPagination.Next isDisabled={page >= pages - 1} onPress={() => onChange(page + 1)}>
-            <span>Next</span>
+            <span>{texts.common.next}</span>
             <HeroPagination.NextIcon />
           </HeroPagination.Next>
         </HeroPagination.Item>

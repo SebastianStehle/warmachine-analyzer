@@ -5,6 +5,7 @@ import { UnmatchedEntryDto, useClients } from 'src/api';
 import { ListLink, PageHeader, QueryState, SearchInput, SortableColumn, StatTile } from 'src/components';
 import { useDateRange } from 'src/lib/date-range';
 import { matchesSearch, useClientSort } from 'src/lib/sorting';
+import { texts } from 'src/texts';
 
 // Some entries appear in almost every army, the full list is in the tooltip.
 const SHOWN_ARMIES = 3;
@@ -39,36 +40,36 @@ export function UnmatchedPage() {
   return (
     <>
       <PageHeader
-        kicker="Data quality"
-        title="Unmatched entries"
-        description="List entries that match no model of the catalog. They have no model stats and no price. Fix them in the parser or the catalog, then run npm run crawl -- --reparse."
-        actions={<SearchInput value={search} onChange={setSearch} placeholder="Search name or army" />}
+        kicker={texts.unmatched.kicker}
+        title={texts.unmatched.title}
+        description={texts.unmatched.description}
+        actions={<SearchInput value={search} onChange={setSearch} placeholder={texts.unmatched.search} />}
       />
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <StatTile label="Distinct names" value={data?.items.length ?? '–'} />
-        <StatTile label="Entries" value={data ? entries : '–'} />
+        <StatTile label={texts.unmatched.distinctNames} value={data?.items.length ?? '–'} />
+        <StatTile label={texts.unmatched.entries} value={data ? entries : '–'} />
       </div>
 
       <QueryState
         isLoading={isLoading}
         error={error}
         isEmpty={sorted.length === 0}
-        emptyText={data?.items.length === 0 ? 'Every entry matches a model of the catalog.' : 'No entries match the search.'}
+        emptyText={data?.items.length === 0 ? texts.unmatched.allMatched : texts.unmatched.noEntriesMatch}
       >
         <Table>
           <Table.ScrollContainer>
-            <Table.Content aria-label="Unmatched entries" sortDescriptor={sortDescriptor} onSortChange={onSortChange}>
+            <Table.Content aria-label={texts.unmatched.title} sortDescriptor={sortDescriptor} onSortChange={onSortChange}>
               <Table.Header>
                 <SortableColumn id="name" isRowHeader>
-                  Name
+                  {texts.unmatched.name}
                 </SortableColumn>
-                <SortableColumn id="kind">Kind</SortableColumn>
-                <SortableColumn id="lists">Lists</SortableColumn>
-                <SortableColumn id="entries">Entries</SortableColumn>
-                <SortableColumn id="armies">Armies</SortableColumn>
-                <SortableColumn id="lastSeen">Last seen</SortableColumn>
-                <Table.Column>Example</Table.Column>
+                <SortableColumn id="kind">{texts.unmatched.kind}</SortableColumn>
+                <SortableColumn id="lists">{texts.common.lists}</SortableColumn>
+                <SortableColumn id="entries">{texts.unmatched.entries}</SortableColumn>
+                <SortableColumn id="armies">{texts.common.armies}</SortableColumn>
+                <SortableColumn id="lastSeen">{texts.unmatched.lastSeen}</SortableColumn>
+                <Table.Column>{texts.unmatched.example}</Table.Column>
               </Table.Header>
               <Table.Body>
                 {sorted.map((item) => (
@@ -89,12 +90,12 @@ export function UnmatchedPage() {
                     <Table.Cell className="text-muted text-sm">
                       <span title={item.armies.join(', ')}>
                         {item.armies.slice(0, SHOWN_ARMIES).join(', ')}
-                        {item.armies.length > SHOWN_ARMIES && ` +${item.armies.length - SHOWN_ARMIES} more`}
+                        {item.armies.length > SHOWN_ARMIES && ` ${texts.unmatched.moreArmies(item.armies.length - SHOWN_ARMIES)}`}
                       </span>
                     </Table.Cell>
                     <Table.Cell className="whitespace-nowrap">{item.lastSeen}</Table.Cell>
                     <Table.Cell className="whitespace-nowrap">
-                      <ListLink id={item.exampleListId}>Open list</ListLink>
+                      <ListLink id={item.exampleListId}>{texts.unmatched.openList}</ListLink>
                     </Table.Cell>
                   </Table.Row>
                 ))}

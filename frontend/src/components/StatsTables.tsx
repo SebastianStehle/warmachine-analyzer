@@ -8,6 +8,7 @@ import { formatPercent } from 'src/lib/format';
 import { listsLink } from 'src/lib/links';
 import { MODEL_TYPE_LABELS } from 'src/lib/models';
 import { matchesSearch, useClientSort } from 'src/lib/sorting';
+import { texts } from 'src/texts';
 import { ArmyLink } from './Links';
 import { ModelTypeBadge, WikiLink } from './ModelInfo';
 import { SearchInput } from './SearchInput';
@@ -27,10 +28,10 @@ const DOT_SIZE = 80;
 const isReliableImpact = ({ games, gamesWithout }: UnitStatsDto) =>
   games >= MIN_RELIABLE_GAMES && gamesWithout >= MIN_RELIABLE_GAMES;
 
-const formatImpact = (impact: number) => `${impact > 0 ? '+' : ''}${Math.round(impact * PERCENT)} pts`;
+const formatImpact = (impact: number) => texts.common.modelStats.impactPoints(Math.round(impact * PERCENT));
 
 const describeImpact = ({ winRate, games, winRateWithout, gamesWithout }: UnitStatsDto) =>
-  `${formatPercent(winRate)} with it (${games} games) and ${formatPercent(winRateWithout)} without it (${gamesWithout} games), out of ${games + gamesWithout} games with a known list`;
+  texts.common.modelStats.describeImpact(formatPercent(winRate), games, formatPercent(winRateWithout), gamesWithout);
 
 export interface KnownListProps {
   knownListRecord: RecordDto;
@@ -43,9 +44,8 @@ export function KnownListNote({ knownListRecord, totalGames }: KnownListProps) {
 
   return (
     <p className="text-muted text-sm">
-      Impact compares games where the played list is known: {knownListRecord.games} of {totalGames} games, with a win rate of{' '}
-      {formatPercent(knownListRecord.winRate)}. With and without a model always add up to these games.
-      {unknown > 0 && ` The other ${unknown} games are left out, because the player submitted no list.`}
+      {texts.common.modelStats.knownListNote(knownListRecord.games, totalGames, formatPercent(knownListRecord.winRate))}
+      {unknown > 0 && ` ${texts.common.modelStats.unknownListGames(unknown)}`}
     </p>
   );
 }
@@ -60,7 +60,7 @@ export function Impact({ unit }: { unit: UnitStatsDto }) {
   return (
     <span
       className={classNames('whitespace-nowrap', { 'opacity-60': !isReliable })}
-      title={`${describeImpact(unit)}${isReliable ? '' : '. Too few games, treat with care.'}`}
+      title={`${describeImpact(unit)}${isReliable ? '' : `. ${texts.common.modelStats.tooFewGames}`}`}
     >
       <span
         className={classNames('font-semibold tabular-nums', {
@@ -70,7 +70,7 @@ export function Impact({ unit }: { unit: UnitStatsDto }) {
       >
         {formatImpact(unit.impact)}
       </span>{' '}
-      <span className="text-muted text-xs">({unit.gamesWithout} without)</span>
+      <span className="text-muted text-xs">({texts.common.modelStats.withoutCount(unit.gamesWithout)})</span>
     </span>
   );
 }
@@ -87,15 +87,20 @@ const UNIT_ACCESSORS = {
 
 function TypeSelect({ types, value, onChange }: { types: ModelType[]; value: string; onChange: (value: string) => void }) {
   return (
-    <Select aria-label="Type" className="w-44" value={value} onChange={(key: Key | null) => onChange(String(key ?? ALL_TYPES))}>
+    <Select
+      aria-label={texts.common.type}
+      className="w-44"
+      value={value}
+      onChange={(key: Key | null) => onChange(String(key ?? ALL_TYPES))}
+    >
       <Select.Trigger>
         <Select.Value />
         <Select.Indicator />
       </Select.Trigger>
       <Select.Popover>
         <ListBox>
-          <ListBox.Item id={ALL_TYPES} textValue="All types">
-            All types
+          <ListBox.Item id={ALL_TYPES} textValue={texts.common.allTypes}>
+            {texts.common.allTypes}
             <ListBox.ItemIndicator />
           </ListBox.Item>
           {types.map((type) => (
@@ -104,8 +109,8 @@ function TypeSelect({ types, value, onChange }: { types: ModelType[]; value: str
               <ListBox.ItemIndicator />
             </ListBox.Item>
           ))}
-          <ListBox.Item id={OTHER_TYPE} textValue="Other">
-            Other
+          <ListBox.Item id={OTHER_TYPE} textValue={texts.common.other}>
+            {texts.common.other}
             <ListBox.ItemIndicator />
           </ListBox.Item>
         </ListBox>
@@ -150,27 +155,31 @@ export function UnitsTable({ units, totalLists, listsFilter, knownListRecord, to
               <Switch.Control>
                 <Switch.Thumb />
               </Switch.Control>
-              Show unplayed
+              {texts.common.modelStats.showUnplayed}
             </Switch.Content>
           </Switch>
         )}
         <TypeSelect types={types} value={type} onChange={setType} />
-        <SearchInput value={search} onChange={setSearch} placeholder="Search models and units" />
+        <SearchInput value={search} onChange={setSearch} placeholder={texts.common.modelStats.searchModels} />
       </div>
 
       <Table>
         <Table.ScrollContainer>
-          <Table.Content aria-label="Models and units" sortDescriptor={sortDescriptor} onSortChange={onSortChange}>
+          <Table.Content
+            aria-label={texts.common.modelStats.modelsAndUnits}
+            sortDescriptor={sortDescriptor}
+            onSortChange={onSortChange}
+          >
             <Table.Header>
               <SortableColumn id="name" isRowHeader>
-                Model / unit
+                {texts.common.modelStats.modelOrUnit}
               </SortableColumn>
-              <SortableColumn id="type">Type</SortableColumn>
-              <SortableColumn id="lists">In lists</SortableColumn>
-              <SortableColumn id="copies">Copies</SortableColumn>
-              <SortableColumn id="averagePoints">Avg. points</SortableColumn>
-              <SortableColumn id="winRate">Win rate when played</SortableColumn>
-              <SortableColumn id="impact">Impact</SortableColumn>
+              <SortableColumn id="type">{texts.common.type}</SortableColumn>
+              <SortableColumn id="lists">{texts.common.modelStats.inLists}</SortableColumn>
+              <SortableColumn id="copies">{texts.common.modelStats.copies}</SortableColumn>
+              <SortableColumn id="averagePoints">{texts.common.modelStats.averagePoints}</SortableColumn>
+              <SortableColumn id="winRate">{texts.common.modelStats.winRateWhenPlayed}</SortableColumn>
+              <SortableColumn id="impact">{texts.common.modelStats.impact}</SortableColumn>
             </Table.Header>
             <Table.Body>
               {sorted.map((unit) => (
@@ -229,10 +238,10 @@ function ImpactTooltip({ active, payload }: { active?: boolean; payload?: { payl
     <div className="bg-overlay border-border rounded border px-3 py-2 text-sm shadow-lg">
       <div className="font-semibold">{unit.name}</div>
       <div>
-        In {Math.round(inclusion)}% of the lists <span className="text-muted">({unit.lists})</span>
+        {texts.common.modelStats.inPercentOfLists(Math.round(inclusion))} <span className="text-muted">({unit.lists})</span>
       </div>
       <div>
-        Impact: <span className="font-semibold">{formatImpact(unit.impact!)}</span>
+        {texts.common.modelStats.impactLabel} <span className="font-semibold">{formatImpact(unit.impact!)}</span>
       </div>
       <div className="text-muted text-xs">{describeImpact(unit)}</div>
     </div>
@@ -255,17 +264,13 @@ export function ImpactChart({ units, totalLists, knownListRecord, totalGames }: 
     }));
 
   if (points.length === 0) {
-    return <p className="text-muted text-sm">No model has at least {MIN_RELIABLE_GAMES} games with and without it yet.</p>;
+    return <p className="text-muted text-sm">{texts.common.modelStats.noReliableModels(MIN_RELIABLE_GAMES)}</p>;
   }
 
   return (
     <div className="flex flex-col gap-2">
       <KnownListNote knownListRecord={knownListRecord} totalGames={totalGames} />
-      <p className="text-muted text-sm">
-        Each dot is a model or unit with at least {MIN_RELIABLE_GAMES} games with and without it. Up means lists with it win more
-        often than lists without it. This shows a correlation, not the cause: strong players and popular casters take some models
-        more often than others.
-      </p>
+      <p className="text-muted text-sm">{texts.common.modelStats.chartDescription(MIN_RELIABLE_GAMES)}</p>
 
       <div style={{ height: CHART_HEIGHT }}>
         <ResponsiveContainer width="100%" height="100%">
@@ -274,18 +279,24 @@ export function ImpactChart({ units, totalLists, knownListRecord, totalGames }: 
             <XAxis
               type="number"
               dataKey="inclusion"
-              name="Inclusion"
+              name={texts.common.modelStats.inclusion}
               unit="%"
               domain={[0, PERCENT]}
               stroke="var(--muted)"
               tick={{ fill: 'var(--muted)', fontSize: 12 }}
-              label={{ value: 'In % of the lists', position: 'insideBottom', offset: -12, fill: 'var(--muted)', fontSize: 12 }}
+              label={{
+                value: texts.common.modelStats.inclusionAxis,
+                position: 'insideBottom',
+                offset: -12,
+                fill: 'var(--muted)',
+                fontSize: 12,
+              }}
             />
             <YAxis
               type="number"
               dataKey="impact"
-              name="Impact"
-              unit=" pts"
+              name={texts.common.modelStats.impact}
+              unit={texts.common.modelStats.pointsUnit}
               stroke="var(--muted)"
               tick={{ fill: 'var(--muted)', fontSize: 12 }}
               width={64}
@@ -316,13 +327,13 @@ export function MatchupsTable({ matchups }: { matchups: MatchupStatsDto[] }) {
   return (
     <Table>
       <Table.ScrollContainer>
-        <Table.Content aria-label="Matchups" sortDescriptor={sortDescriptor} onSortChange={onSortChange}>
+        <Table.Content aria-label={texts.common.matchups} sortDescriptor={sortDescriptor} onSortChange={onSortChange}>
           <Table.Header>
             <SortableColumn id="opponent" isRowHeader>
-              Against
+              {texts.common.against}
             </SortableColumn>
-            <SortableColumn id="winRate">Win rate</SortableColumn>
-            <SortableColumn id="games">W / L / D</SortableColumn>
+            <SortableColumn id="winRate">{texts.common.winRate}</SortableColumn>
+            <SortableColumn id="games">{texts.common.winsLossesDraws}</SortableColumn>
           </Table.Header>
           <Table.Body>
             {sorted.map(({ opponent, games, wins, losses, draws, winRate }) => (

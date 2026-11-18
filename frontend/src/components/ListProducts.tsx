@@ -2,6 +2,7 @@ import { Card, Chip, Link, Table } from '@heroui/react';
 import { ListDetailsDto } from 'src/api';
 import { useListPrices } from 'src/lib/collection';
 import { formatPrice } from 'src/lib/format';
+import { texts } from 'src/texts';
 
 export function ListProducts({ list }: { list: ListDetailsDto }) {
   const { currency, unpricedModels } = list;
@@ -15,36 +16,38 @@ export function ListProducts({ list }: { list: ListDetailsDto }) {
   return (
     <Card>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-xl font-semibold">{remaining ? 'Buy the rest' : 'Buy this list'}</h2>
+        <h2 className="text-xl font-semibold">
+          {remaining ? texts.common.listProducts.buyRest : texts.common.listProducts.buyList}
+        </h2>
         <span className="font-display text-accent text-2xl font-semibold">{formatPrice(price, currency)}</span>
       </div>
 
       {!currency ? (
         <p className="text-muted text-sm">
-          No prices yet. Import the shop with <code>npm run crawl -- --shop</code>.
+          {texts.common.listProducts.noPrices} <code>npm run crawl -- --shop</code>.
         </p>
       ) : (
         <>
           <p className="text-muted text-sm">
             {remaining && price === 0
-              ? 'Your collection already contains all models of this list.'
+              ? texts.common.listProducts.collectionComplete
               : price !== null
-                ? 'The cheapest combination of products from the shop that contains all models.'
-                : 'No total, because not all models of the list are sold in the shop. The products cover the other models.'}
-            {remaining && price !== 0 && ' Products of your collection are left out.'}
+                ? texts.common.listProducts.cheapest
+                : texts.common.listProducts.noTotal}
+            {remaining && price !== 0 && ` ${texts.common.listProducts.collectionLeftOut}`}
             {remaining && list.price !== null && price !== list.price && (
-              <> Without your collection: {formatPrice(list.price, currency)}.</>
+              <> {texts.common.listProducts.withoutCollection(formatPrice(list.price, currency))}</>
             )}
           </p>
 
           {products.length > 0 && (
             <Table>
               <Table.ScrollContainer>
-                <Table.Content aria-label="Products">
+                <Table.Content aria-label={texts.common.products}>
                   <Table.Header>
-                    <Table.Column isRowHeader>Product</Table.Column>
-                    <Table.Column>Qty</Table.Column>
-                    <Table.Column>Price</Table.Column>
+                    <Table.Column isRowHeader>{texts.common.product}</Table.Column>
+                    <Table.Column>{texts.common.listProducts.quantity}</Table.Column>
+                    <Table.Column>{texts.common.price}</Table.Column>
                   </Table.Header>
                   <Table.Body>
                     {products.map((product) => (
@@ -65,7 +68,7 @@ export function ListProducts({ list }: { list: ListDetailsDto }) {
                             </Link>
                             {!product.available && (
                               <Chip size="sm" color="warning" variant="soft">
-                                Sold out
+                                {texts.common.soldOut}
                               </Chip>
                             )}
                           </div>
@@ -84,7 +87,8 @@ export function ListProducts({ list }: { list: ListDetailsDto }) {
 
           {unpricedModels.length > 0 && (
             <p className="text-sm">
-              <span className="text-warning font-semibold">Not in the shop:</span> {unpricedModels.join(', ')}
+              <span className="text-warning font-semibold">{texts.common.listProducts.notInShop}</span>{' '}
+              {unpricedModels.join(', ')}
             </p>
           )}
         </>

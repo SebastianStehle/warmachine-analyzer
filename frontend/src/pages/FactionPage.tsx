@@ -23,6 +23,7 @@ import { factionColor } from 'src/lib/factions';
 import { listsLink } from 'src/lib/links';
 import { matchesSearch, useClientSort } from 'src/lib/sorting';
 import { useTabParam } from 'src/lib/tabs';
+import { texts } from 'src/texts';
 
 const CASTER_ACCESSORS = {
   caster: (x: CasterStatsDto) => x.caster,
@@ -46,19 +47,19 @@ function CastersTable({ army, casters, totalLists }: { army: string; casters: Ca
   return (
     <div className="flex flex-col gap-3">
       <div className="flex justify-end">
-        <SearchInput value={search} onChange={setSearch} placeholder="Search casters" />
+        <SearchInput value={search} onChange={setSearch} placeholder={texts.factions.searchCasters} />
       </div>
 
       <Table>
         <Table.ScrollContainer>
-          <Table.Content aria-label="Casters" sortDescriptor={sortDescriptor} onSortChange={onSortChange}>
+          <Table.Content aria-label={texts.common.casters} sortDescriptor={sortDescriptor} onSortChange={onSortChange}>
             <Table.Header>
               <SortableColumn id="caster" isRowHeader>
-                Caster
+                {texts.common.caster}
               </SortableColumn>
-              <SortableColumn id="lists">In lists</SortableColumn>
-              <SortableColumn id="winRate">Win rate</SortableColumn>
-              <SortableColumn id="games">W / L / D</SortableColumn>
+              <SortableColumn id="lists">{texts.common.modelStats.inLists}</SortableColumn>
+              <SortableColumn id="winRate">{texts.common.winRate}</SortableColumn>
+              <SortableColumn id="games">{texts.common.winsLossesDraws}</SortableColumn>
             </Table.Header>
             <Table.Body>
               {sorted.map(({ caster, wikiPage, lists, games, wins, losses, draws, winRate }) => (
@@ -69,7 +70,7 @@ function CastersTable({ army, casters, totalLists }: { army: string; casters: Ca
                         <CasterLink caster={caster} />
                       </span>
                       <Link className="text-xs" href={armyListsLink(army, { caster })}>
-                        lists
+                        {texts.factions.listsLink}
                       </Link>
                       <WikiLink page={wikiPage} />
                     </div>
@@ -107,7 +108,7 @@ export function FactionPage() {
   return (
     <>
       <Breadcrumbs>
-        <Breadcrumbs.Item href="/factions">Factions</Breadcrumbs.Item>
+        <Breadcrumbs.Item href="/factions">{texts.common.factions}</Breadcrumbs.Item>
         <Breadcrumbs.Item>{army}</Breadcrumbs.Item>
       </Breadcrumbs>
 
@@ -118,42 +119,42 @@ export function FactionPage() {
               kicker={
                 <span className="inline-flex items-center gap-2">
                   <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: factionColor(data.stats.faction) }} />
-                  {data.stats.faction ?? 'Army'}
+                  {data.stats.faction ?? texts.common.army}
                 </span>
               }
               title={army}
-              actions={<Link href={armyListsLink(army)}>All lists of this army</Link>}
+              actions={<Link href={armyListsLink(army)}>{texts.factions.allListsOfArmy}</Link>}
             />
 
             <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-              <StatTile label="Players" value={data.stats.players} />
-              <StatTile label="Lists" value={<Link href={armyListsLink(army)}>{data.stats.lists}</Link>} />
-              <StatTile label="Win rate" value={<WinRate winRate={data.stats.winRate} games={data.stats.games} />} />
+              <StatTile label={texts.common.players} value={data.stats.players} />
+              <StatTile label={texts.common.lists} value={<Link href={armyListsLink(army)}>{data.stats.lists}</Link>} />
+              <StatTile label={texts.common.winRate} value={<WinRate winRate={data.stats.winRate} games={data.stats.games} />} />
               <StatTile
-                label="Record"
+                label={texts.common.record}
                 value={`${data.stats.wins} / ${data.stats.losses} / ${data.stats.draws}`}
-                detail={`${data.stats.mirrors} mirror matches`}
+                detail={texts.factions.mirrorMatches(data.stats.mirrors)}
               />
             </div>
 
             <Card>
               <Tabs {...tabs}>
                 <Tabs.ListContainer>
-                  <Tabs.List aria-label="Details" className="w-fit">
+                  <Tabs.List aria-label={texts.common.details} className="w-fit">
                     <Tabs.Tab id="units" className="font-display tracking-wide uppercase">
-                      Models & units
+                      {texts.common.modelStats.unitsTab}
                       <Tabs.Indicator />
                     </Tabs.Tab>
                     <Tabs.Tab id="impact" className="font-display tracking-wide uppercase">
-                      Model impact
+                      {texts.common.modelStats.impactTab}
                       <Tabs.Indicator />
                     </Tabs.Tab>
                     <Tabs.Tab id="casters" className="font-display tracking-wide uppercase">
-                      Casters
+                      {texts.common.casters}
                       <Tabs.Indicator />
                     </Tabs.Tab>
                     <Tabs.Tab id="matchups" className="font-display tracking-wide uppercase">
-                      Matchups
+                      {texts.common.matchups}
                       <Tabs.Indicator />
                     </Tabs.Tab>
                   </Tabs.List>

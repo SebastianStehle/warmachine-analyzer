@@ -5,6 +5,7 @@ import { EventSortField, SortOrder, useClients } from 'src/api';
 import { EventLink, PageHeader, Pagination, QueryState, SearchInput, SortableColumn } from 'src/components';
 import { useDateRange } from 'src/lib/date-range';
 import { useServerSort } from 'src/lib/sorting';
+import { texts } from 'src/texts';
 
 const PAGE_SIZE = 50;
 
@@ -42,11 +43,15 @@ export function EventsPage() {
   return (
     <>
       <PageHeader
-        kicker="Tournaments"
-        title="Events"
-        description="All imported events with their final standings."
+        kicker={texts.events.kicker}
+        title={texts.common.events}
+        description={texts.events.description}
         actions={
-          <SearchInput value={search} onChange={(value) => setParam('search', value)} placeholder="Search name or location" />
+          <SearchInput
+            value={search}
+            onChange={(value) => setParam('search', value)}
+            placeholder={texts.events.searchPlaceholder}
+          />
         }
       />
 
@@ -55,16 +60,16 @@ export function EventsPage() {
           <>
             <Table>
               <Table.ScrollContainer>
-                <Table.Content aria-label="Events" sortDescriptor={sortDescriptor} onSortChange={onSortChange}>
+                <Table.Content aria-label={texts.common.events} sortDescriptor={sortDescriptor} onSortChange={onSortChange}>
                   <Table.Header>
-                    <SortableColumn id="date">Date</SortableColumn>
+                    <SortableColumn id="date">{texts.common.date}</SortableColumn>
                     <SortableColumn id="name" isRowHeader>
-                      Event
+                      {texts.common.event}
                     </SortableColumn>
-                    <Table.Column>Type</Table.Column>
-                    <SortableColumn id="players">Players</SortableColumn>
-                    <SortableColumn id="rounds">Rounds</SortableColumn>
-                    <Table.Column>Lists</Table.Column>
+                    <Table.Column>{texts.common.type}</Table.Column>
+                    <SortableColumn id="players">{texts.common.players}</SortableColumn>
+                    <SortableColumn id="rounds">{texts.events.rounds}</SortableColumn>
+                    <Table.Column>{texts.common.lists}</Table.Column>
                   </Table.Header>
                   <Table.Body>
                     {data.items.map(({ id, date, name, location, type, playerCount, rounds, lists }) => (

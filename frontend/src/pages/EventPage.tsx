@@ -16,6 +16,7 @@ import {
 } from 'src/components';
 import { LONGSHANKS_URL } from 'src/lib/factions';
 import { matchesSearch, useClientSort } from 'src/lib/sorting';
+import { texts } from 'src/texts';
 
 const STANDING_ACCESSORS = {
   rank: (x: EventStandingDto) => x.rank,
@@ -58,7 +59,7 @@ export function EventPage() {
   return (
     <>
       <Breadcrumbs>
-        <Breadcrumbs.Item href="/events">Events</Breadcrumbs.Item>
+        <Breadcrumbs.Item href="/events">{texts.common.events}</Breadcrumbs.Item>
         <Breadcrumbs.Item>{data?.name ?? id}</Breadcrumbs.Item>
       </Breadcrumbs>
 
@@ -78,10 +79,10 @@ export function EventPage() {
             />
 
             <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-              <StatTile label="Players" value={data.playerCount} />
-              <StatTile label="Rounds" value={data.rounds} />
-              <StatTile label="Lists" value={<Link href={`/lists?eventId=${data.id}`}>{data.lists}</Link>} />
-              <StatTile label="Armies" value={armies.size} />
+              <StatTile label={texts.common.players} value={data.playerCount} />
+              <StatTile label={texts.events.rounds} value={data.rounds} />
+              <StatTile label={texts.common.lists} value={<Link href={`/lists?eventId=${data.id}`}>{data.lists}</Link>} />
+              <StatTile label={texts.common.armies} value={armies.size} />
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -95,23 +96,23 @@ export function EventPage() {
 
             <Card>
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold">Standings</h2>
-                <SearchInput value={search} onChange={setSearch} placeholder="Search player, army, caster" />
+                <h2 className="text-xl font-semibold">{texts.events.standings}</h2>
+                <SearchInput value={search} onChange={setSearch} placeholder={texts.events.searchStandingsPlaceholder} />
               </div>
               <Table>
                 <Table.ScrollContainer>
-                  <Table.Content aria-label="Standings" sortDescriptor={sortDescriptor} onSortChange={onSortChange}>
+                  <Table.Content aria-label={texts.events.standings} sortDescriptor={sortDescriptor} onSortChange={onSortChange}>
                     <Table.Header>
-                      <SortableColumn id="rank">Rank</SortableColumn>
+                      <SortableColumn id="rank">{texts.events.rank}</SortableColumn>
                       <SortableColumn id="player" isRowHeader>
-                        Player
+                        {texts.common.player}
                       </SortableColumn>
-                      <SortableColumn id="army">Army</SortableColumn>
-                      <Table.Column>Lists</Table.Column>
-                      <SortableColumn id="tournamentPoints">Record</SortableColumn>
-                      <SortableColumn id="strengthOfSchedule">SOS</SortableColumn>
-                      <SortableColumn id="controlPoints">CP</SortableColumn>
-                      <SortableColumn id="armyPoints">AP</SortableColumn>
+                      <SortableColumn id="army">{texts.common.army}</SortableColumn>
+                      <Table.Column>{texts.common.lists}</Table.Column>
+                      <SortableColumn id="tournamentPoints">{texts.common.record}</SortableColumn>
+                      <SortableColumn id="strengthOfSchedule">{texts.events.strengthOfSchedule}</SortableColumn>
+                      <SortableColumn id="controlPoints">{texts.events.controlPoints}</SortableColumn>
+                      <SortableColumn id="armyPoints">{texts.events.armyPoints}</SortableColumn>
                     </Table.Header>
                     <Table.Body>
                       {sorted.map((standing) => (
@@ -127,7 +128,7 @@ export function EventPage() {
                             <div className="flex flex-col">
                               {standing.lists.map(({ id: listId, caster }) => (
                                 <ListLink key={listId} id={listId}>
-                                  {caster ?? 'List'}
+                                  {caster ?? texts.common.list}
                                 </ListLink>
                               ))}
                               {standing.lists.length === 0 && '–'}

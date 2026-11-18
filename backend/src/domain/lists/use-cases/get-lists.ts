@@ -189,12 +189,14 @@ export function createFilteredListQuery(dataSource: DataSource, filter: Omit<Lis
     );
   }
 
+  // The stats show the name of the matched model, lists often spell it differently, e.g. "Radiance Of Morrow".
   if (unit) {
     const withUnit = dataSource
       .getRepository(ListEntryEntity)
       .createQueryBuilder('le')
+      .leftJoin(ModelEntity, 'um', 'um.id = le.modelId')
       .select('le.listId')
-      .where('le.baseName = :unit');
+      .where('(um.name = :unit OR le.baseName = :unit)');
 
     query.andWhere(`l.id IN (${withUnit.getQuery()})`, { unit });
   }

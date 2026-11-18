@@ -6,6 +6,7 @@ import { ArmyLink, PageHeader, Pagination, PlayerLink, QueryState, SearchInput, 
 import { useDateRange } from 'src/lib/date-range';
 import { formatPercent } from 'src/lib/format';
 import { useServerSort } from 'src/lib/sorting';
+import { texts } from 'src/texts';
 
 const PAGE_SIZE = 50;
 
@@ -43,27 +44,33 @@ export function PlayersPage() {
   return (
     <>
       <PageHeader
-        kicker="Community"
-        title="Players"
-        description="Everyone who played in an imported event. Records are taken from the event standings."
-        actions={<SearchInput value={search} onChange={(value) => setParam('search', value)} placeholder="Search players" />}
+        kicker={texts.players.kicker}
+        title={texts.common.players}
+        description={texts.players.description}
+        actions={
+          <SearchInput
+            value={search}
+            onChange={(value) => setParam('search', value)}
+            placeholder={texts.players.searchPlaceholder}
+          />
+        }
       />
 
-      <QueryState isLoading={isLoading} error={error} isEmpty={data?.total === 0} emptyText="No players match the search.">
+      <QueryState isLoading={isLoading} error={error} isEmpty={data?.total === 0} emptyText={texts.players.noPlayersMatch}>
         {data && (
           <>
             <Table>
               <Table.ScrollContainer>
-                <Table.Content aria-label="Players" sortDescriptor={sortDescriptor} onSortChange={onSortChange}>
+                <Table.Content aria-label={texts.common.players} sortDescriptor={sortDescriptor} onSortChange={onSortChange}>
                   <Table.Header>
                     <SortableColumn id="name" isRowHeader>
-                      Player
+                      {texts.common.player}
                     </SortableColumn>
-                    <Table.Column>Main army</Table.Column>
-                    <SortableColumn id="events">Events</SortableColumn>
-                    <SortableColumn id="wins">Record</SortableColumn>
-                    <SortableColumn id="winRate">Win rate</SortableColumn>
-                    <SortableColumn id="lastEvent">Last event</SortableColumn>
+                    <Table.Column>{texts.players.mainArmy}</Table.Column>
+                    <SortableColumn id="events">{texts.common.events}</SortableColumn>
+                    <SortableColumn id="wins">{texts.common.record}</SortableColumn>
+                    <SortableColumn id="winRate">{texts.common.winRate}</SortableColumn>
+                    <SortableColumn id="lastEvent">{texts.players.lastEvent}</SortableColumn>
                   </Table.Header>
                   <Table.Body>
                     {data.items.map(({ id, name, mainArmy, events, wins, losses, winRate, lastEventDate }) => (
@@ -79,7 +86,8 @@ export function PlayersPage() {
                           {wins}-{losses}
                         </Table.Cell>
                         <Table.Cell>
-                          {formatPercent(winRate)} <span className="text-muted text-xs">({wins + losses} games)</span>
+                          {formatPercent(winRate)}{' '}
+                          <span className="text-muted text-xs">({texts.players.gameCount(wins + losses)})</span>
                         </Table.Cell>
                         <Table.Cell className="whitespace-nowrap">{lastEventDate ?? '–'}</Table.Cell>
                       </Table.Row>

@@ -18,6 +18,7 @@ import { useListPrices } from 'src/lib/collection';
 import { useDateRange } from 'src/lib/date-range';
 import { formatPrice } from 'src/lib/format';
 import { useServerSort } from 'src/lib/sorting';
+import { texts } from 'src/texts';
 
 const PAGE_SIZE = 50;
 
@@ -26,18 +27,18 @@ type FilterKey = 'unit' | 'playerId' | 'eventId' | 'maxRank' | 'search' | 'page'
 const ANY_PLACING = 'any';
 
 const PLACINGS = [
-  { maxRank: 1, label: 'Winners' },
-  { maxRank: 3, label: 'Top 3' },
-  { maxRank: 4, label: 'Top 4' },
-  { maxRank: 8, label: 'Top 8' },
-  { maxRank: 16, label: 'Top 16' },
-  { maxRank: 32, label: 'Top 32' },
+  { maxRank: 1, label: texts.lists.placings.winners },
+  { maxRank: 3, label: texts.lists.placings.top3 },
+  { maxRank: 4, label: texts.lists.placings.top4 },
+  { maxRank: 8, label: texts.lists.placings.top8 },
+  { maxRank: 16, label: texts.lists.placings.top16 },
+  { maxRank: 32, label: texts.lists.placings.top32 },
 ];
 
 const FILTER_LABELS: Partial<Record<FilterKey, string>> = {
-  unit: 'Contains',
-  playerId: 'Player',
-  eventId: 'Event',
+  unit: texts.lists.contains,
+  playerId: texts.common.player,
+  eventId: texts.common.event,
 };
 
 function formatPoints(totalPoints: number | null, pointLevel: number | null) {
@@ -150,14 +151,14 @@ export function ListsPage() {
   return (
     <>
       <PageHeader
-        kicker="Army lists"
-        title="Lists"
-        description="Every imported list, newest first. Click a row for the full list and the games it was played in."
+        kicker={texts.lists.kicker}
+        title={texts.common.lists}
+        description={texts.lists.description}
         actions={
           <SearchInput
             value={search}
             onChange={(value) => setFilter('search', value)}
-            placeholder="Search caster, player, event"
+            placeholder={texts.lists.searchPlaceholder}
           />
         }
       />
@@ -166,26 +167,26 @@ export function ListsPage() {
         <MultiSelect
           options={factions?.items.map(({ army }) => army) ?? []}
           selected={armies}
-          placeholder="All armies"
+          placeholder={texts.common.allArmies}
           onChange={(selected) => setMultiFilter('army', selected)}
         />
 
         <MultiSelect
           options={[...casterGroups].map(([label, casters]) => ({ label, options: casters }))}
           selected={casters}
-          placeholder="All casters"
+          placeholder={texts.lists.allCasters}
           onChange={(selected) => setMultiFilter('caster', selected)}
         />
 
         <MultiSelect
           options={pointLevelOptions?.items.map(({ pointLevel }) => String(pointLevel)) ?? []}
           selected={pointLevels}
-          placeholder="All point levels"
+          placeholder={texts.lists.allPointLevels}
           onChange={(selected) => setMultiFilter('pointLevel', selected)}
         />
 
         <Select
-          aria-label="Placing"
+          aria-label={texts.common.placing}
           className="w-40"
           value={maxRank ? String(maxRank) : ANY_PLACING}
           onChange={(key: Key | null) => setFilter('maxRank', key && key !== ANY_PLACING ? String(key) : undefined)}
@@ -196,8 +197,8 @@ export function ListsPage() {
           </Select.Trigger>
           <Select.Popover>
             <ListBox>
-              <ListBox.Item id={ANY_PLACING} textValue="Any placing">
-                Any placing
+              <ListBox.Item id={ANY_PLACING} textValue={texts.lists.anyPlacing}>
+                {texts.lists.anyPlacing}
                 <ListBox.ItemIndicator />
               </ListBox.Item>
               {PLACINGS.map(({ maxRank: rank, label }) => (
@@ -219,24 +220,24 @@ export function ListsPage() {
           ))}
       </div>
 
-      <QueryState isLoading={isLoading} error={error} isEmpty={data?.total === 0} emptyText="No lists match the filter.">
+      <QueryState isLoading={isLoading} error={error} isEmpty={data?.total === 0} emptyText={texts.common.noListsMatch}>
         {data && (
           <>
             <Table>
               <Table.ScrollContainer>
-                <Table.Content aria-label="Lists" sortDescriptor={sortDescriptor} onSortChange={onSortChange}>
+                <Table.Content aria-label={texts.common.lists} sortDescriptor={sortDescriptor} onSortChange={onSortChange}>
                   <Table.Header>
-                    <SortableColumn id="date">Date</SortableColumn>
-                    <SortableColumn id="event">Event</SortableColumn>
+                    <SortableColumn id="date">{texts.common.date}</SortableColumn>
+                    <SortableColumn id="event">{texts.common.event}</SortableColumn>
                     <SortableColumn id="player" isRowHeader>
-                      Player
+                      {texts.common.player}
                     </SortableColumn>
-                    <SortableColumn id="rank">Placing</SortableColumn>
-                    <SortableColumn id="army">Army</SortableColumn>
-                    <SortableColumn id="caster">Caster</SortableColumn>
-                    <SortableColumn id="points">Points</SortableColumn>
-                    <Table.Column>Played</Table.Column>
-                    <SortableColumn id="price">{pricesLeft ? 'Price left' : 'Price'}</SortableColumn>
+                    <SortableColumn id="rank">{texts.common.placing}</SortableColumn>
+                    <SortableColumn id="army">{texts.common.army}</SortableColumn>
+                    <SortableColumn id="caster">{texts.common.caster}</SortableColumn>
+                    <SortableColumn id="points">{texts.common.points}</SortableColumn>
+                    <Table.Column>{texts.common.played}</Table.Column>
+                    <SortableColumn id="price">{pricesLeft ? texts.common.priceLeft : texts.common.price}</SortableColumn>
                   </Table.Header>
                   <Table.Body>
                     {data.items.map((list) => (
@@ -244,7 +245,9 @@ export function ListsPage() {
                         <Table.Cell className="whitespace-nowrap">{list.eventDate}</Table.Cell>
                         <Table.Cell>
                           <EventLink id={list.eventId}>{list.eventName}</EventLink>{' '}
-                          <span className="text-muted text-xs whitespace-nowrap">({list.eventPlayers} players)</span>
+                          <span className="text-muted text-xs whitespace-nowrap">
+                            ({texts.lists.playerCount(list.eventPlayers)})
+                          </span>
                         </Table.Cell>
                         <Table.Cell>
                           <PlayerLink id={list.playerId}>{list.playerName}</PlayerLink>
@@ -268,7 +271,7 @@ export function ListsPage() {
                           {formatPoints(list.totalPoints, list.pointLevel)}
                         </Table.Cell>
                         <Table.Cell className="whitespace-nowrap">
-                          {list.games > 0 ? `${list.wins} of ${list.games} won` : '–'}
+                          {list.games > 0 ? texts.common.wonOf(list.wins, list.games) : '–'}
                         </Table.Cell>
                         <Table.Cell className="whitespace-nowrap tabular-nums">
                           {priceLeft.has(list.id) ? (

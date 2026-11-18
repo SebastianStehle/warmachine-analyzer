@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactNode } from 'react';
 import { RouterProvider } from 'react-aria-components';
-import { BrowserRouter, Navigate, Route, Routes, useHref, useNavigate } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useHref, useLocation, useNavigate } from 'react-router-dom';
 import { Layout } from './components';
 import { CasterPage } from './pages/CasterPage';
 import { CollectionPage } from './pages/CollectionPage';
@@ -46,6 +46,14 @@ function AriaRouter({ children }: { children: ReactNode }) {
   );
 }
 
+// The layout adds the stored date range to the URL of the current page while this redirect runs. Keeping the query
+// makes the redirect run again when that happens, otherwise the app stays on the empty page.
+function DefaultRedirect() {
+  const { search } = useLocation();
+
+  return <Navigate to={{ pathname: '/factions', search }} replace />;
+}
+
 export const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
@@ -65,7 +73,7 @@ export const App = () => {
               <Route path="/events/:id" element={<EventPage />} />
               <Route path="/collection" element={<CollectionPage />} />
               <Route path="/unmatched" element={<UnmatchedPage />} />
-              <Route path="*" element={<Navigate to="/factions" replace />} />
+              <Route path="*" element={<DefaultRedirect />} />
             </Route>
           </Routes>
         </AriaRouter>

@@ -1,6 +1,7 @@
 import { Button, DateField, DateRangePicker, RangeCalendar } from '@heroui/react';
 import { parseDate } from '@internationalized/date';
 import { useDateRange } from 'src/lib/date-range';
+import { texts } from 'src/texts';
 
 export function DateRangeFilter() {
   const { from, to, setRange } = useDateRange();
@@ -10,7 +11,7 @@ export function DateRangeFilter() {
   return (
     <div className="flex items-center gap-2">
       <DateRangePicker
-        aria-label="Date range"
+        aria-label={texts.common.dateRange}
         value={value}
         onChange={(range) => setRange(range?.start.toString(), range?.end.toString())}
       >
@@ -25,7 +26,7 @@ export function DateRangeFilter() {
           </DateField.Suffix>
         </DateField.Group>
         <DateRangePicker.Popover>
-          <RangeCalendar aria-label="Date range">
+          <RangeCalendar aria-label={texts.common.dateRange}>
             <RangeCalendar.Header>
               <RangeCalendar.YearPickerTrigger>
                 <RangeCalendar.YearPickerTriggerHeading />
@@ -51,7 +52,7 @@ export function DateRangeFilter() {
 
       {value && (
         <Button size="sm" variant="ghost" onPress={() => setRange()}>
-          Clear
+          {texts.common.clear}
         </Button>
       )}
     </div>

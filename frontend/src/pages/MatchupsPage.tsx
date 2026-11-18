@@ -8,6 +8,7 @@ import { useDateRange } from 'src/lib/date-range';
 import { factionColor } from 'src/lib/factions';
 import { formatPercent } from 'src/lib/format';
 import { useClientSort } from 'src/lib/sorting';
+import { texts } from 'src/texts';
 
 const MIN_GAMES_OPTIONS = [1, 5, 10, 20];
 const DEFAULT_MIN_GAMES = 5;
@@ -54,7 +55,7 @@ function MatchupCell({ cell, minGames }: { cell: MatchupCellDto | undefined; min
     return <span className="text-muted">–</span>;
   }
 
-  const title = `${cell.group} vs ${cell.opponent}: ${cell.wins}-${cell.losses}-${cell.draws}`;
+  const title = texts.matchups.cellTitle(cell.group, cell.opponent, cell.wins, cell.losses, cell.draws);
 
   if (cell.games < minGames) {
     return (
@@ -78,10 +79,10 @@ function MatrixView({ groups, cells, grouping, minGames }: ViewProps) {
   return (
     <Table>
       <Table.ScrollContainer>
-        <Table.Content aria-label="Matchup matrix">
+        <Table.Content aria-label={texts.matchups.matrixLabel}>
           <Table.Header>
-            <Table.Column isRowHeader>{grouping === 'army' ? 'Army' : 'Faction'}</Table.Column>
-            <Table.Column>Overall</Table.Column>
+            <Table.Column isRowHeader>{grouping === 'army' ? texts.common.army : texts.common.faction}</Table.Column>
+            <Table.Column>{texts.matchups.overall}</Table.Column>
             {groups.map(({ name }) => (
               <Table.Column key={name} id={`column-${name}`} className="align-bottom">
                 <span
@@ -143,7 +144,6 @@ function ListView({ groups, cells, grouping, minGames }: ViewProps) {
 
   const groupsByName = new Map(groups.map((group) => [group.name, group]));
   const names = groups.map(({ name }) => name);
-  const label = grouping === 'army' ? 'armies' : 'factions';
 
   const visible = cells.filter(
     ({ group, opponent, games }) =>
@@ -160,12 +160,17 @@ function ListView({ groups, cells, grouping, minGames }: ViewProps) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-2">
-        <MultiSelect options={names} selected={selectedGroups} placeholder={`All ${label}`} onChange={setSelectedGroups} />
-        <span className="text-muted text-sm">vs</span>
+        <MultiSelect
+          options={names}
+          selected={selectedGroups}
+          placeholder={grouping === 'army' ? texts.common.allArmies : texts.matchups.allFactions}
+          onChange={setSelectedGroups}
+        />
+        <span className="text-muted text-sm">{texts.matchups.versus}</span>
         <MultiSelect
           options={names}
           selected={selectedOpponents}
-          placeholder={`All opposing ${label}`}
+          placeholder={grouping === 'army' ? texts.matchups.allOpposingArmies : texts.matchups.allOpposingFactions}
           onChange={setSelectedOpponents}
         />
       </div>
@@ -174,21 +179,21 @@ function ListView({ groups, cells, grouping, minGames }: ViewProps) {
         <Alert>
           <Alert.Indicator />
           <Alert.Content>
-            <Alert.Title>No matchups match the filter.</Alert.Title>
+            <Alert.Title>{texts.matchups.noMatchups}</Alert.Title>
           </Alert.Content>
         </Alert>
       ) : (
         <Table>
           <Table.ScrollContainer>
-            <Table.Content aria-label="Matchups" sortDescriptor={sortDescriptor} onSortChange={onSortChange}>
+            <Table.Content aria-label={texts.common.matchups} sortDescriptor={sortDescriptor} onSortChange={onSortChange}>
               <Table.Header>
                 <SortableColumn id="group" isRowHeader>
-                  {grouping === 'army' ? 'Army' : 'Faction'}
+                  {grouping === 'army' ? texts.common.army : texts.common.faction}
                 </SortableColumn>
-                <SortableColumn id="opponent">Opponent</SortableColumn>
-                <SortableColumn id="winRate">Win rate</SortableColumn>
-                <SortableColumn id="games">Games</SortableColumn>
-                <Table.Column>Wins-Losses-Draws</Table.Column>
+                <SortableColumn id="opponent">{texts.common.opponent}</SortableColumn>
+                <SortableColumn id="winRate">{texts.common.winRate}</SortableColumn>
+                <SortableColumn id="games">{texts.common.games}</SortableColumn>
+                <Table.Column>{texts.matchups.winsLossesDraws}</Table.Column>
               </Table.Header>
               <Table.Body>
                 {sorted.map((cell) => (
@@ -243,12 +248,12 @@ export function MatchupsPage() {
   return (
     <>
       <PageHeader
-        kicker="Matchups"
-        title="Matchups"
-        description="The win rate of each faction or army against each other, with the number of games in brackets. Mirror matches are not counted. Matchups with fewer games than the minimum only show the number of games in the matrix and are hidden in the list."
+        kicker={texts.common.matchups}
+        title={texts.common.matchups}
+        description={texts.matchups.description}
         actions={
           <Select
-            aria-label="Minimum games"
+            aria-label={texts.matchups.minimumGames}
             className="w-44"
             value={String(minGames)}
             onChange={(key: Key | null) => setParam('minGames', String(key ?? DEFAULT_MIN_GAMES))}
@@ -260,8 +265,8 @@ export function MatchupsPage() {
             <Select.Popover>
               <ListBox>
                 {MIN_GAMES_OPTIONS.map((option) => (
-                  <ListBox.Item key={option} id={String(option)} textValue={`At least ${option} games`}>
-                    At least {option} {option === 1 ? 'game' : 'games'}
+                  <ListBox.Item key={option} id={String(option)} textValue={texts.matchups.atLeastGames(option)}>
+                    {texts.matchups.atLeastGames(option)}
                     <ListBox.ItemIndicator />
                   </ListBox.Item>
                 ))}
@@ -274,13 +279,13 @@ export function MatchupsPage() {
       <div className="flex flex-wrap gap-4">
         <Tabs className="flex-1" selectedKey={grouping} onSelectionChange={(key) => setParam('grouping', String(key))}>
           <Tabs.ListContainer>
-            <Tabs.List aria-label="Grouping">
+            <Tabs.List aria-label={texts.matchups.grouping}>
               <Tabs.Tab id="faction" className="font-display tracking-wide uppercase">
-                Factions
+                {texts.common.factions}
                 <Tabs.Indicator />
               </Tabs.Tab>
               <Tabs.Tab id="army" className="font-display tracking-wide uppercase">
-                Armies
+                {texts.common.armies}
                 <Tabs.Indicator />
               </Tabs.Tab>
             </Tabs.List>
@@ -289,13 +294,13 @@ export function MatchupsPage() {
 
         <Tabs className="flex-1" selectedKey={view} onSelectionChange={(key) => setParam('view', String(key))}>
           <Tabs.ListContainer>
-            <Tabs.List aria-label="View">
+            <Tabs.List aria-label={texts.matchups.view}>
               <Tabs.Tab id="matrix" className="font-display tracking-wide uppercase">
-                Matrix
+                {texts.matchups.matrix}
                 <Tabs.Indicator />
               </Tabs.Tab>
               <Tabs.Tab id="list" className="font-display tracking-wide uppercase">
-                List
+                {texts.common.list}
                 <Tabs.Indicator />
               </Tabs.Tab>
             </Tabs.List>

@@ -2,12 +2,13 @@ import { Chip } from '@heroui/react';
 import { MouseEvent } from 'react';
 import { ModelType } from 'src/api';
 import { MODEL_TYPE_LABELS, wikiUrl } from 'src/lib/models';
+import { texts } from 'src/texts';
 
 export function ModelTypeBadge({ type }: { type: ModelType | null | undefined }) {
   if (!type) {
     return (
-      <Chip size="sm" variant="soft" title="Not in the army index of the wiki">
-        Other
+      <Chip size="sm" variant="soft" title={texts.common.notInWiki}>
+        {texts.common.other}
       </Chip>
     );
   }
@@ -30,10 +31,10 @@ export function WikiLink({ page }: { page: string | null | undefined }) {
       href={wikiUrl(page)}
       target="_blank"
       rel="noreferrer"
-      title="Open in the Warmachine Academy wiki"
+      title={texts.common.openInWiki}
       onClick={(event: MouseEvent) => event.stopPropagation()}
     >
-      wiki ↗
+      {texts.common.wiki}
     </a>
   );
 }

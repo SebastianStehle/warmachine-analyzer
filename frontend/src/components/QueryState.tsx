@@ -1,5 +1,6 @@
 import { Alert, Spinner } from '@heroui/react';
 import { ReactNode } from 'react';
+import { texts } from 'src/texts';
 
 export interface QueryStateProps {
   isLoading: boolean;
@@ -23,7 +24,7 @@ export function QueryState({ isLoading, error, isEmpty, emptyText, children }: Q
       <Alert status="danger">
         <Alert.Indicator />
         <Alert.Content>
-          <Alert.Title>Failed to load data</Alert.Title>
+          <Alert.Title>{texts.common.loadingFailed}</Alert.Title>
           <Alert.Description>{error instanceof Error ? error.message : String(error)}</Alert.Description>
         </Alert.Content>
       </Alert>
@@ -35,7 +36,7 @@ export function QueryState({ isLoading, error, isEmpty, emptyText, children }: Q
       <Alert>
         <Alert.Indicator />
         <Alert.Content>
-          <Alert.Title>{emptyText ?? 'No data yet. Run the crawler to import events.'}</Alert.Title>
+          <Alert.Title>{emptyText ?? texts.common.noData}</Alert.Title>
         </Alert.Content>
       </Alert>
     );

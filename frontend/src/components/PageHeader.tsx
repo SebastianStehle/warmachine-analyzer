@@ -1,7 +1,6 @@
 import { Card } from '@heroui/react';
 import { ReactNode, useEffect } from 'react';
-
-const APP_TITLE = 'Warmachine Analyzer';
+import { texts } from 'src/texts';
 
 export interface PageHeaderProps {
   kicker?: ReactNode;
@@ -15,7 +14,7 @@ export function PageHeader({ kicker, title, description, actions, image }: PageH
   // Every page has a header, so it also names the browser tab.
   useEffect(() => {
     if (typeof title === 'string') {
-      document.title = `${title} · ${APP_TITLE}`;
+      document.title = texts.common.pageTitle(title);
     }
   }, [title]);
 

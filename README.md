@@ -88,10 +88,13 @@ Every push to `main` runs the integration tests and builds the image (lint, buil
 cd dev
 docker compose up -d                          # Postgres and the analyzer on http://localhost:3100
 docker compose --profile autoupdate up -d     # also starts Watchtower, which updates the analyzer to the latest image
+ANALYZER_DOMAIN=analyzer.example.com docker compose --profile proxy --profile autoupdate up -d   # also starts Caddy with HTTPS on that domain
 docker compose exec analyzer node dist/crawl.js --from 2026-01-01   # crawl inside the container
 ```
 
 The analyzer crawls new events every day at 04:00 (`CRAWLER_SCHEDULE`). Set `ANALYZER_IMAGE` when the repository has another name than `SebastianStehle/warmachine-analyzer`. Watchtower checks for a new image every 5 minutes and only updates containers with the `com.centurylinklabs.watchtower.enable` label, never Postgres. If the package on GitHub is private, run `docker login ghcr.io` with a personal access token (scope `read:packages`) on the host first.
+
+The `proxy` profile runs [squidex/caddy-proxy](https://hub.docker.com/r/squidex/caddy-proxy) like in pangostack: Caddy gets a Let's Encrypt certificate for `ANALYZER_DOMAIN` and forwards to the analyzer. The domain must point to the host and ports 80 and 443 must be open. Put `ANALYZER_DOMAIN` into `dev/.env` so you do not have to pass it every time.
 
 ## Development
 

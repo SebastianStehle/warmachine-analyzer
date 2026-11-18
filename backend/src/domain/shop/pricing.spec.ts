@@ -91,6 +91,37 @@ describe('findCheapestProducts', () => {
     expect(result).toEqual({ price: 9000, products: [{ id: 10, quantity: 1 }], unpricedModels: 0 });
   });
 
+  it('should prefer one box over several boxes', async () => {
+    const result = await findCheapestProducts(
+      new Map([
+        [LEADER, 1],
+        [WARJACK, 1],
+        [UNIT, 1],
+      ]),
+      [
+        product(10, 5000, [
+          [LEADER, 1],
+          [WARJACK, 1],
+        ]),
+        product(11, 5000, [
+          [WARJACK, 1],
+          [UNIT, 1],
+        ]),
+        product(12, 2500, [[LEADER, 1]]),
+        product(13, 3500, [[UNIT, 1]]),
+      ],
+    );
+
+    expect(result).toEqual({
+      price: 7500,
+      products: [
+        { id: 11, quantity: 1 },
+        { id: 12, quantity: 1 },
+      ],
+      unpricedModels: 0,
+    });
+  });
+
   it('should take further copies of a model from single kits instead of buying the box again', async () => {
     const result = await findCheapestProducts(
       new Map([

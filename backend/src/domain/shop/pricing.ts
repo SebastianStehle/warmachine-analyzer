@@ -24,16 +24,19 @@ const loadSolver = () => (solver ??= highsLoader());
 
 const productVariable = (index: number) => `p${index}`;
 const boxVariable = (modelId: number) => `b${modelId}`;
+const chosenBoxVariable = (index: number) => `s${index}`;
 
 const isBox = ({ models }: PricedProduct) => [...models.values()].reduce((sum, quantity) => sum + quantity, 0) > 1;
 
-// Finds the products to buy for a list. Boxes with several models are preferred, even when single kits are cheaper,
-// because they leave room for changes to the list: every model that is part of a box comes from a box at least once.
-// The rest is the cheapest combination that contains every model at least as often as required.
+// Finds the products to buy for a list. One box with several models is preferred, even when single kits are cheaper,
+// because it leaves room for changes to the list: the box that contains the most required models is always bought.
+// Several boxes are not preferred, because they stack up duplicates. The rest is the cheapest combination that
+// contains every model at least as often as required, further boxes only when they are cheaper.
 //
-// Both steps are small integer programs: one variable per product (how often it is bought) and one binary variable per
-// model that a box can contain (whether a bought box contains it). The first step maximizes the models from boxes, the
-// second minimizes the price while keeping that number.
+// Both steps are small integer programs: one variable per product (how often it is bought), one binary variable per box
+// (whether it is the preferred box, at most one) and one binary variable per model that a box can contain (whether the
+// preferred box contains it). The first step maximizes the models from the preferred box, the second minimizes the price
+// while keeping that number.
 export async function findCheapestProducts(required: Map<number, number>, products: PricedProduct[]): Promise<ProductSelection> {
   const candidates = products.filter(({ models }) => [...models.keys()].some((modelId) => required.has(modelId)));
 
@@ -62,14 +65,22 @@ export async function findCheapestProducts(required: Map<number, number>, produc
     return ` m${modelId}: ${terms.join(' + ')} >= ${count}`;
   });
 
-  // A model only counts as coming from a box when at least one bought box contains it.
+  // A model only counts as coming from a box when the preferred box contains it, and the preferred box must be bought.
   const boxConstraints = boxModels.map((modelId) => {
-    const terms = boxes
-      .filter(({ candidate }) => candidate.models.has(modelId))
-      .map(({ candidate, index }) => `${candidate.models.get(modelId)} ${productVariable(index)}`);
+    const terms = boxes.filter(({ candidate }) => candidate.models.has(modelId)).map(({ index }) => chosenBoxVariable(index));
 
     return ` c${modelId}: ${boxVariable(modelId)} - ${terms.join(' - ')} <= 0`;
   });
+
+  if (boxModels.length > 0) {
+    boxConstraints.push(` one: ${boxes.map(({ index }) => chosenBoxVariable(index)).join(' + ')} <= 1`);
+    for (const { index } of boxes) {
+      boxConstraints.push(` u${index}:${chosenBoxVariable(index)} - ${productVariable(index)} <= 0`);
+    }
+  }
+
+  const binaries =
+    boxModels.length > 0 ? [...boxModels.map(boxVariable), ...boxes.map(({ index }) => chosenBoxVariable(index))] : [];
 
   // Nobody buys a product more often than its most needed model requires.
   const bounds = candidates.map(({ models }, index) => {
@@ -91,7 +102,7 @@ export async function findCheapestProducts(required: Map<number, number>, produc
       ...bounds,
       'General',
       ` ${candidates.map((_, index) => productVariable(index)).join(' ')}`,
-      ...(boxModels.length > 0 ? ['Binary', ` ${boxModels.map(boxVariable).join(' ')}`] : []),
+      ...(binaries.length > 0 ? ['Binary', ` ${binaries.join(' ')}`] : []),
       'End',
     ].join('\n');
 

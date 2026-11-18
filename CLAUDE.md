@@ -135,7 +135,7 @@ Only the OpenAPI spec is committed. The API client is generated from it and is g
 
 - `Dockerfile` (repository root): generates the API client, lints, builds and unit tests backend and frontend, the runtime image serves the frontend from the backend on port 3000.
 - `.github/workflows/build.yml`: integration tests on the runner (TestContainers needs Docker), then builds the image and pushes it to `ghcr.io/<owner>/<repository>` on pushes to `main`.
-- `dev/docker-compose.yml`: Postgres for development (`npm run dev:infra` only starts this service), the published image as `analyzer`, and Watchtower in the `autoupdate` profile to update it automatically.
+- `dev/docker-compose.yml`: Postgres for development (`npm run dev:infra` only starts this service), the published image as `analyzer`, Watchtower in the `autoupdate` profile to update it automatically, and Caddy (`squidex/caddy-proxy`, HTTPS for `ANALYZER_DOMAIN`) in the `proxy` profile.
 
 ## Coding Guidelines
 

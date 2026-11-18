@@ -46,5 +46,26 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     restart: unless-stopped
 
+  # Caddy with automatic HTTPS for ANALYZER_DOMAIN, start with `docker compose --profile proxy up -d`.
+  # The domain must point to this host and ports 80 and 443 must be reachable for the certificate.
+  proxy:
+    image: squidex/caddy-proxy
+    profiles:
+      - proxy
+    depends_on:
+      - analyzer
+    environment:
+      - SITE_ADDRESS=${ANALYZER_DOMAIN:-localhost}
+      - SITE_SERVER=analyzer:3000
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+    restart: unless-stopped
+
 volumes:
   postgres-data:
+  caddy-data:
+  caddy-config:

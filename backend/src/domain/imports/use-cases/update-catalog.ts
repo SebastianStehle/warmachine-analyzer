@@ -22,7 +22,10 @@ export class UpdateCatalogHandler implements ICommandHandler<UpdateCatalog, Impo
     const indexes = await loadArmyIndexes(this.client);
     const pages = indexes.flatMap(({ models }) => models.map(({ wikiPage }) => wikiPage).filter((page) => page !== null));
 
-    const catalog = buildCatalog([...indexes, ...WIKI_ADDITIONS], await loadPageDetails(this.client, pages));
+    // Additions only extend armies of the wiki, a missing index must not create an army without faction.
+    const additions = WIKI_ADDITIONS.filter(({ army }) => indexes.some((index) => index.army === army));
+
+    const catalog = buildCatalog([...indexes, ...additions], await loadPageDetails(this.client, pages));
     if (catalog.armies.length === 0) {
       throw new Error('The wiki returned no army indexes.');
     }

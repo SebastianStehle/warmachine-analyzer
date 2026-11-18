@@ -186,8 +186,9 @@ describe('Imports', () => {
     ]);
     expect(list.price).toBeNull();
     expect(list.currency).toEqual('EUR');
-    // Models that are not in the shop and entries that are not in the catalog.
-    expect(list.unpricedModels).toEqual(expect.arrayContaining(['Hellyth, Scyir of Nightfall', 'Benkei']));
+    // Models that the shop does not sell. Benkei is not in this catalog, but comes with Lanyssa, so it is not missing.
+    expect(list.unpricedModels).toEqual(expect.arrayContaining(['Hellyth, Scyir of Nightfall', 'Mage Hunter Sniper Team']));
+    expect(list.unpricedModels).not.toContain('Benkei');
     expect(items[0].price).toBeNull();
   });
 

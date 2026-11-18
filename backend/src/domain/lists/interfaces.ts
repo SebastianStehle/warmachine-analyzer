@@ -70,6 +70,32 @@ export interface ListProduct {
   available: boolean;
 }
 
+export interface OwnedProduct {
+  shopId: string;
+  quantity: number;
+}
+
+export interface ListPrice {
+  listId: number;
+  price: number | null;
+  products: ListProduct[];
+}
+
+export interface ShopProductContent {
+  name: string;
+  quantity: number;
+}
+
+export interface ShopProduct {
+  shopId: string;
+  title: string;
+  url: string;
+  imageUrl: string | null;
+  price: number;
+  available: boolean;
+  models: ShopProductContent[];
+}
+
 export interface ListDetails extends ListSummary {
   casterImageUrl: string | null;
   format: string | null;

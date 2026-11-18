@@ -1,12 +1,13 @@
 import { ApiProperty, IntersectionType } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
-import { IsEnum, IsInt, IsOptional, IsString, Min } from 'class-validator';
+import { ArrayMaxSize, IsEnum, IsInt, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
 import { GameResult, ListEntryKind, ModelType } from 'src/domain/database';
 import {
   CasterOption,
   ListDetails,
   ListEntry,
   ListGame,
+  ListPrice,
   ListProduct,
   ListSortField,
   ListSummary,
@@ -390,6 +391,71 @@ export class PointLevelOptionsDto {
   static fromDomain(items: PointLevelOption[]) {
     const result = new PointLevelOptionsDto();
     result.items = items.map(PointLevelOptionDto.fromDomain);
+    return result;
+  }
+}
+
+// One page of the lists table, so the prices of a page can be calculated with one request.
+const MAX_PRICED_LISTS = 100;
+
+export class OwnedProductDto {
+  @ApiProperty({ description: 'The ID of the product in the shop.', required: true })
+  @IsString()
+  shopId: string;
+
+  @ApiProperty({ description: 'How often the product is owned.', required: true })
+  @IsInt()
+  @Min(0)
+  quantity: number;
+}
+
+export class ListPricesRequestDto {
+  @ApiProperty({ description: 'The lists to calculate the prices for.', required: true, type: [Number] })
+  @IsInt({ each: true })
+  @ArrayMaxSize(MAX_PRICED_LISTS)
+  listIds: number[];
+
+  @ApiProperty({ description: 'The products that are already owned.', required: true, type: [OwnedProductDto] })
+  @ValidateNested({ each: true })
+  @Type(() => OwnedProductDto)
+  owned: OwnedProductDto[];
+}
+
+export class ListPriceDto {
+  @ApiProperty({ description: 'The ID of the list.', required: true })
+  listId: number;
+
+  @ApiProperty({
+    description: 'The price of the products that are still needed, in cents.',
+    required: true,
+    nullable: true,
+    type: Number,
+  })
+  price: number | null;
+
+  @ApiProperty({ description: 'The products that are still needed.', required: true, type: [ListProductDto] })
+  products: ListProductDto[];
+
+  static fromDomain({ listId, price, products }: ListPrice) {
+    const result = new ListPriceDto();
+    result.listId = listId;
+    result.price = price;
+    result.products = products.map(ListProductDto.fromDomain);
+    return result;
+  }
+}
+
+export class ListPricesDto {
+  @ApiProperty({ description: 'The prices.', required: true, type: [ListPriceDto] })
+  items: ListPriceDto[];
+
+  @ApiProperty({ description: 'The currency of the prices.', required: true, nullable: true, type: String })
+  currency: string | null;
+
+  static fromDomain(items: ListPrice[], currency: string | null) {
+    const result = new ListPricesDto();
+    result.items = items.map(ListPriceDto.fromDomain);
+    result.currency = currency;
     return result;
   }
 }

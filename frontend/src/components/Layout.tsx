@@ -8,6 +8,7 @@ const NAVIGATION = [
   { to: '/lists', label: 'Lists' },
   { to: '/players', label: 'Players' },
   { to: '/events', label: 'Events' },
+  { to: '/collection', label: 'Collection' },
 ];
 
 function Cog() {

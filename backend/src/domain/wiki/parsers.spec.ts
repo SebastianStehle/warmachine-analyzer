@@ -7,6 +7,7 @@ import {
   parseAttachments,
   parseCompanions,
   parseImageUrls,
+  parsePageHeadings,
   parsePageImages,
   toModelType,
 } from './parsers';
@@ -129,6 +130,15 @@ describe('images', () => {
       'Hellyth, Scyir of Nightfall': 'Hellyth1.jpg',
       'Dr. Arkadius': 'Arkadius 1.webp',
       'Exulon Nostilla & Aberration': 'Exulon Nostilla and Aberration.webp',
+    });
+  });
+
+  it('should read the full name of a model from the first heading of its page', () => {
+    const headings = parsePageHeadings(fixture('page-contents'), ['Carver Ultimus', 'Dr. Arkadius']);
+
+    expect(Object.fromEntries(headings)).toEqual({
+      'Carver Ultimus': 'Emperor Carver Ultimus Esquire III',
+      'Dr. Arkadius': 'Dr. Arkadius',
     });
   });
 

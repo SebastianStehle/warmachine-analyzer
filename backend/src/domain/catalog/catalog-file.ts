@@ -1,7 +1,7 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { ModelType } from 'src/domain/database';
-import { ArmyIndex } from 'src/domain/wiki';
+import { ArmyIndex, PageDetails } from 'src/domain/wiki';
 
 export interface CatalogModelData {
   name: string;
@@ -38,7 +38,10 @@ const byName = <T extends { name: string }>(a: T, b: T) => a.name.localeCompare(
 
 // Models appear in the indexes of several armies (mercenaries, allies), so they are merged by name. The output is sorted
 // to keep the diff of the catalog file small when the wiki changes.
-export function buildCatalog(indexes: ArmyIndex[], images = new Map<string, string>()): CatalogData {
+export function buildCatalog(
+  indexes: ArmyIndex[],
+  { images, headings }: PageDetails = { images: new Map(), headings: new Map() },
+): CatalogData {
   const models = new Map<string, { name: string; type: ModelType | null; wikiPage: string | null; aliases: Set<string> }>();
   const armies = new Map<string, CatalogArmyData>();
 
@@ -66,6 +69,15 @@ export function buildCatalog(indexes: ArmyIndex[], images = new Map<string, stri
     }
 
     armies.set(army, { name: army, faction, wikiIndex, models: armyModels });
+  }
+
+  // The shop uses the full name, e.g. "Emperor Carver Ultimus Esquire III". Companions and attachments are described on
+  // the page of another model, so only the model the page is named after gets the heading.
+  for (const model of models.values()) {
+    const heading = model.wikiPage === model.name ? headings.get(model.wikiPage) : undefined;
+    if (heading && heading !== model.name) {
+      model.aliases.add(heading);
+    }
   }
 
   return {

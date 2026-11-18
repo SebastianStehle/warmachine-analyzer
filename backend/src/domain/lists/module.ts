@@ -1,12 +1,23 @@
 import { Module } from '@nestjs/common';
-import { GetCastersHandler, GetListHandler, GetListsHandler, GetPointLevelsHandler } from './use-cases';
+import { ShopModule } from 'src/domain/shop';
+import {
+  GetCastersHandler,
+  GetListHandler,
+  GetListPricesHandler,
+  GetListsHandler,
+  GetPointLevelsHandler,
+  GetShopProductsHandler,
+} from './use-cases';
 
 @Module({
+  imports: [ShopModule],
   providers: [
     GetCastersHandler, //
     GetListHandler,
+    GetListPricesHandler,
     GetListsHandler,
     GetPointLevelsHandler,
+    GetShopProductsHandler,
   ],
 })
 export class ListsModule {}

@@ -1,9 +1,18 @@
-import { Controller, Get, Param, ParseIntPipe, Query } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, ParseIntPipe, Post, Query } from '@nestjs/common';
 import { QueryBus } from '@nestjs/cqrs';
 import { ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
-import { GetCastersQuery, GetListQuery, GetListsQuery, GetPointLevelsQuery } from 'src/domain/lists';
+import { GetCastersQuery, GetListPricesQuery, GetListQuery, GetListsQuery, GetPointLevelsQuery } from 'src/domain/lists';
 import { DateRangeQueryDto } from '../shared';
-import { CasterOptionsDto, CastersQueryDto, ListDetailsDto, ListsDto, ListsQueryDto, PointLevelOptionsDto } from './dtos';
+import {
+  CasterOptionsDto,
+  CastersQueryDto,
+  ListDetailsDto,
+  ListPricesDto,
+  ListPricesRequestDto,
+  ListsDto,
+  ListsQueryDto,
+  PointLevelOptionsDto,
+} from './dtos';
 
 @Controller('api/lists')
 @ApiTags('lists')
@@ -35,6 +44,19 @@ export class ListsController {
     const { pointLevels } = await this.queryBus.execute(new GetPointLevelsQuery({ from, to }));
 
     return PointLevelOptionsDto.fromDomain(pointLevels);
+  }
+
+  @Post('prices')
+  @HttpCode(200)
+  @ApiOperation({
+    operationId: 'getListPrices',
+    description: 'Calculates the prices of lists without the products that are already owned.',
+  })
+  @ApiOkResponse({ type: ListPricesDto })
+  async getListPrices(@Body() { listIds, owned }: ListPricesRequestDto) {
+    const { prices, currency } = await this.queryBus.execute(new GetListPricesQuery(listIds, owned));
+
+    return ListPricesDto.fromDomain(prices, currency);
   }
 
   @Get(':id')

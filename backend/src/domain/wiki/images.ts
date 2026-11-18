@@ -1,6 +1,6 @@
 import { Logger } from '@nestjs/common';
 import { WikiClient } from './client';
-import { parseImageUrls, parsePageImages } from './parsers';
+import { parseImageUrls, parsePageHeadings, parsePageImages } from './parsers';
 
 const logger = new Logger('WikiImages');
 
@@ -17,15 +17,25 @@ function toBatches<T>(values: T[]) {
   return result;
 }
 
-export async function loadPageImages(client: WikiClient, pages: string[]) {
+export interface PageDetails {
+  images: Map<string, string>;
+  headings: Map<string, string>;
+}
+
+export async function loadPageDetails(client: WikiClient, pages: string[]): Promise<PageDetails> {
   const files = new Map<string, string>();
+  const headings = new Map<string, string>();
   for (const batch of toBatches([...new Set(pages)])) {
     try {
-      for (const [page, file] of parsePageImages(await client.getPageContents(batch), batch)) {
+      const contents = await client.getPageContents(batch);
+      for (const [page, file] of parsePageImages(contents, batch)) {
         files.set(page, file);
       }
+      for (const [page, heading] of parsePageHeadings(contents, batch)) {
+        headings.set(page, heading);
+      }
     } catch (error) {
-      logger.warn(`Failed to load the images of ${batch.length} pages: ${error}`);
+      logger.warn(`Failed to load ${batch.length} pages: ${error}`);
     }
   }
 
@@ -40,13 +50,13 @@ export async function loadPageImages(client: WikiClient, pages: string[]) {
     }
   }
 
-  const result = new Map<string, string>();
+  const images = new Map<string, string>();
   for (const [page, file] of files) {
     const url = urls.get(file);
     if (url) {
-      result.set(page, url);
+      images.set(page, url);
     }
   }
 
-  return result;
+  return { images, headings };
 }

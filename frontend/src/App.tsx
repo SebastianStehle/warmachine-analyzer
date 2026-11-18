@@ -3,6 +3,7 @@ import { ReactNode } from 'react';
 import { RouterProvider } from 'react-aria-components';
 import { BrowserRouter, Navigate, Route, Routes, useHref, useNavigate } from 'react-router-dom';
 import { Layout } from './components';
+import { CollectionPage } from './pages/CollectionPage';
 import { EventPage } from './pages/EventPage';
 import { EventsPage } from './pages/EventsPage';
 import { FactionPage } from './pages/FactionPage';
@@ -57,6 +58,7 @@ export const App = () => {
               <Route path="/players/:id" element={<PlayerPage />} />
               <Route path="/events" element={<EventsPage />} />
               <Route path="/events/:id" element={<EventPage />} />
+              <Route path="/collection" element={<CollectionPage />} />
               <Route path="*" element={<Navigate to="/factions" replace />} />
             </Route>
           </Routes>

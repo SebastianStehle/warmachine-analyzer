@@ -52,6 +52,13 @@ describe('parseProducts', () => {
     ]);
   });
 
+  it('should split the title into the models when the description has no contents', () => {
+    expect(byTitle('Emperor Carver Ultimus').contents).toEqual([
+      { name: 'Emperor Carver Ultimus Esquire III', quantity: 1 },
+      { name: 'War Boar MMD47', quantity: 1 },
+    ]);
+  });
+
   it('should not count chassis variants as models, because they come without weapons and heads', () => {
     expect(byTitle('Stryker Chassis Variant').contents).toEqual([]);
   });

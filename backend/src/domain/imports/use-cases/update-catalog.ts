@@ -1,7 +1,7 @@
 import { writeFileSync } from 'fs';
 import { Command, CommandBus, CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { buildCatalog, CATALOG_FILE } from 'src/domain/catalog';
-import { loadArmyIndexes, loadPageImages, WikiClient } from 'src/domain/wiki';
+import { loadArmyIndexes, loadPageDetails, WikiClient } from 'src/domain/wiki';
 import { ImportCatalog, ImportCatalogResult } from './import-catalog';
 
 export class UpdateCatalog extends Command<ImportCatalogResult> {
@@ -22,7 +22,7 @@ export class UpdateCatalogHandler implements ICommandHandler<UpdateCatalog, Impo
     const indexes = await loadArmyIndexes(this.client);
     const pages = indexes.flatMap(({ models }) => models.map(({ wikiPage }) => wikiPage).filter((page) => page !== null));
 
-    const catalog = buildCatalog(indexes, await loadPageImages(this.client, pages));
+    const catalog = buildCatalog(indexes, await loadPageDetails(this.client, pages));
     if (catalog.armies.length === 0) {
       throw new Error('The wiki returned no army indexes.');
     }

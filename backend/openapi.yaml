@@ -245,6 +245,28 @@ paths:
       summary: ""
       tags:
         - lists
+  /api/lists/prices:
+    post:
+      description: Calculates the prices of lists without the products that are
+        already owned.
+      operationId: getListPrices
+      parameters: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ListPricesRequestDto"
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ListPricesDto"
+      summary: ""
+      tags:
+        - lists
   /api/lists/{id}:
     get:
       description: Gets a list with entries and games.
@@ -344,6 +366,21 @@ paths:
       summary: ""
       tags:
         - players
+  /api/shop/products:
+    get:
+      description: Gets the products of the shop that contain models.
+      operationId: getShopProducts
+      parameters: []
+      responses:
+        "200":
+          description: ""
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ShopProductsDto"
+      summary: ""
+      tags:
+        - shop
   /api/stats/factions:
     get:
       description: Gets stats per army.
@@ -760,6 +797,97 @@ components:
             $ref: "#/components/schemas/PointLevelOptionDto"
       required:
         - items
+    OwnedProductDto:
+      type: object
+      properties:
+        shopId:
+          type: string
+          description: The ID of the product in the shop.
+        quantity:
+          type: number
+          description: How often the product is owned.
+      required:
+        - shopId
+        - quantity
+    ListPricesRequestDto:
+      type: object
+      properties:
+        listIds:
+          description: The lists to calculate the prices for.
+          type: array
+          items:
+            type: number
+        owned:
+          description: The products that are already owned.
+          type: array
+          items:
+            $ref: "#/components/schemas/OwnedProductDto"
+      required:
+        - listIds
+        - owned
+    ListProductDto:
+      type: object
+      properties:
+        title:
+          type: string
+          description: The name of the product.
+        url:
+          type: string
+          description: The link to the product in the shop.
+        imageUrl:
+          type: string
+          description: The image of the product.
+          nullable: true
+        price:
+          type: number
+          description: The price of one product in cents.
+        quantity:
+          type: number
+          description: How often the product is needed.
+        available:
+          type: boolean
+          description: Whether the product can be ordered.
+      required:
+        - title
+        - url
+        - imageUrl
+        - price
+        - quantity
+        - available
+    ListPriceDto:
+      type: object
+      properties:
+        listId:
+          type: number
+          description: The ID of the list.
+        price:
+          type: number
+          description: The price of the products that are still needed, in cents.
+          nullable: true
+        products:
+          description: The products that are still needed.
+          type: array
+          items:
+            $ref: "#/components/schemas/ListProductDto"
+      required:
+        - listId
+        - price
+        - products
+    ListPricesDto:
+      type: object
+      properties:
+        items:
+          description: The prices.
+          type: array
+          items:
+            $ref: "#/components/schemas/ListPriceDto"
+        currency:
+          type: string
+          description: The currency of the prices.
+          nullable: true
+      required:
+        - items
+        - currency
     ListEntryKind:
       type: string
       enum:
@@ -872,35 +1000,6 @@ components:
         - result
         - controlPoints
         - armyPoints
-    ListProductDto:
-      type: object
-      properties:
-        title:
-          type: string
-          description: The name of the product.
-        url:
-          type: string
-          description: The link to the product in the shop.
-        imageUrl:
-          type: string
-          description: The image of the product.
-          nullable: true
-        price:
-          type: number
-          description: The price of one product in cents.
-        quantity:
-          type: number
-          description: How often the product is needed.
-        available:
-          type: boolean
-          description: Whether the product can be ordered.
-      required:
-        - title
-        - url
-        - imageUrl
-        - price
-        - quantity
-        - available
     ListDetailsDto:
       type: object
       properties:
@@ -1242,6 +1341,68 @@ components:
         - winRate
         - armies
         - participations
+    ShopProductContentDto:
+      type: object
+      properties:
+        name:
+          type: string
+          description: The name of the model.
+        quantity:
+          type: number
+          description: How often the model is in the product.
+      required:
+        - name
+        - quantity
+    ShopProductDto:
+      type: object
+      properties:
+        shopId:
+          type: string
+          description: The ID of the product in the shop.
+        title:
+          type: string
+          description: The name of the product.
+        url:
+          type: string
+          description: The link to the product in the shop.
+        imageUrl:
+          type: string
+          description: The image of the product.
+          nullable: true
+        price:
+          type: number
+          description: The price of the product in cents.
+        available:
+          type: boolean
+          description: Whether the product can be ordered.
+        models:
+          description: The models in the product.
+          type: array
+          items:
+            $ref: "#/components/schemas/ShopProductContentDto"
+      required:
+        - shopId
+        - title
+        - url
+        - imageUrl
+        - price
+        - available
+        - models
+    ShopProductsDto:
+      type: object
+      properties:
+        items:
+          description: The products.
+          type: array
+          items:
+            $ref: "#/components/schemas/ShopProductDto"
+        currency:
+          type: string
+          description: The currency of the prices.
+          nullable: true
+      required:
+        - items
+        - currency
     FactionStatsDto:
       type: object
       properties:

@@ -1,5 +1,7 @@
 import { Card } from '@heroui/react';
-import { ReactNode } from 'react';
+import { ReactNode, useEffect } from 'react';
+
+const APP_TITLE = 'Warmachine Analyzer';
 
 export interface PageHeaderProps {
   kicker?: ReactNode;
@@ -10,6 +12,13 @@ export interface PageHeaderProps {
 }
 
 export function PageHeader({ kicker, title, description, actions, image }: PageHeaderProps) {
+  // Every page has a header, so it also names the browser tab.
+  useEffect(() => {
+    if (typeof title === 'string') {
+      document.title = `${title} · ${APP_TITLE}`;
+    }
+  }, [title]);
+
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-end justify-between gap-4">

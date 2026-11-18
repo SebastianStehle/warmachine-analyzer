@@ -6,7 +6,15 @@ import { DataSource } from 'typeorm';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { readCatalog } from 'src/domain/catalog';
 import { ArmyEntity, ArmyListEntity } from 'src/domain/database';
-import { GetCastersQuery, GetListQuery, GetListsQuery, GetPointLevelsQuery, ListsModule } from 'src/domain/lists';
+import {
+  GetCastersQuery,
+  GetListPricesQuery,
+  GetListQuery,
+  GetListsQuery,
+  GetPointLevelsQuery,
+  GetShopProductsQuery,
+  ListsModule,
+} from 'src/domain/lists';
 import { LongshanksClient } from 'src/domain/longshanks';
 import { ShopClient } from 'src/domain/shop';
 import { GetFactionDetailsQuery, GetFactionStatsQuery, StatisticsModule } from 'src/domain/statistics';
@@ -181,6 +189,25 @@ describe('Imports', () => {
     // Models that are not in the shop and entries that are not in the catalog.
     expect(list.unpricedModels).toEqual(expect.arrayContaining(['Hellyth, Scyir of Nightfall', 'Benkei']));
     expect(items[0].price).toBeNull();
+  });
+
+  it('should leave out owned products when the prices are calculated on request', async () => {
+    const { items } = await context.queryBus.execute(new GetListsQuery({ unit: 'Phantasm', page: 0, pageSize: 10 }));
+    const listId = items[0].id;
+
+    const { products } = await context.queryBus.execute(new GetShopProductsQuery());
+    const phantasm = products.find(({ title }) => title === 'Warmachine: Phantasm')!;
+
+    expect(phantasm.models).toEqual([{ name: 'Phantasm', quantity: 1 }]);
+
+    const { prices: withoutCollection } = await context.queryBus.execute(new GetListPricesQuery([listId], []));
+    const { prices: withCollection, currency } = await context.queryBus.execute(
+      new GetListPricesQuery([listId], [{ shopId: phantasm.shopId, quantity: 1 }]),
+    );
+
+    expect(withoutCollection[0].products.map(({ title }) => title)).toContain('Warmachine: Phantasm');
+    expect(withCollection[0].products.map(({ title }) => title)).not.toContain('Warmachine: Phantasm');
+    expect(currency).toEqual('EUR');
   });
 
   it('should calculate faction stats when an event is imported', async () => {

@@ -1,14 +1,21 @@
 import { Card, Chip, Link, Table } from '@heroui/react';
 import { ListDetailsDto } from 'src/api';
+import { useListPrices } from 'src/lib/collection';
 import { formatPrice } from 'src/lib/format';
 
 export function ListProducts({ list }: { list: ListDetailsDto }) {
-  const { products, price, currency, unpricedModels } = list;
+  const { currency, unpricedModels } = list;
+
+  const { data: left } = useListPrices([list.id]);
+  const remaining = left?.items[0];
+
+  const products = remaining ? remaining.products : list.products;
+  const price = remaining ? remaining.price : list.price;
 
   return (
     <Card>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="text-xl font-semibold">Buy this list</h2>
+        <h2 className="text-xl font-semibold">{remaining ? 'Buy the rest' : 'Buy this list'}</h2>
         <span className="font-display text-accent text-2xl font-semibold">{formatPrice(price, currency)}</span>
       </div>
 
@@ -19,9 +26,15 @@ export function ListProducts({ list }: { list: ListDetailsDto }) {
       ) : (
         <>
           <p className="text-muted text-sm">
-            {price !== null
-              ? 'The cheapest combination of products from the shop that contains all models.'
-              : 'No total, because not all models of the list are sold in the shop. The products cover the other models.'}
+            {remaining && price === 0
+              ? 'Your collection already contains all models of this list.'
+              : price !== null
+                ? 'The cheapest combination of products from the shop that contains all models.'
+                : 'No total, because not all models of the list are sold in the shop. The products cover the other models.'}
+            {remaining && price !== 0 && ' Products of your collection are left out.'}
+            {remaining && list.price !== null && price !== list.price && (
+              <> Without your collection: {formatPrice(list.price, currency)}.</>
+            )}
           </p>
 
           {products.length > 0 && (

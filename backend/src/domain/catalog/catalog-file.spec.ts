@@ -30,10 +30,19 @@ describe('buildCatalog', () => {
       models: [{ name: 'Ghast', alias: 'Ghasty', wikiPage: null, type: null, isMercenary: true }],
     };
 
-    const { armies, models } = buildCatalog([kallyss, shared], new Map([['Ghast', 'https://wiki.test/ghast.png']]));
+    const { armies, models } = buildCatalog([kallyss, shared], {
+      images: new Map([['Ghast', 'https://wiki.test/ghast.png']]),
+      headings: new Map([['Ghast', 'The Ghast']]),
+    });
 
     expect(models.filter(({ name }) => name === 'Ghast')).toEqual([
-      { name: 'Ghast', type: 'warjack', wikiPage: 'Ghast', aliases: ['Ghasty'], imageUrl: 'https://wiki.test/ghast.png' },
+      {
+        name: 'Ghast',
+        type: 'warjack',
+        wikiPage: 'Ghast',
+        aliases: ['Ghasty', 'The Ghast'],
+        imageUrl: 'https://wiki.test/ghast.png',
+      },
     ]);
     expect(armies.find(({ name }) => name === 'Other Army')?.models).toEqual([{ name: 'Ghast', isMercenary: true }]);
   });

@@ -211,6 +211,33 @@
           "src": "https://cdn.shopify.com/s/files/1/0609/0863/4169/files/WM-ProductImage-Gallant_Blaize.png?v=1784204395"
         }
       ]
+    },
+    {
+      "id": 8252783099961,
+      "title": "Warmachine: Emperor Carver Ultimus Esquire III & War Boar MMD47",
+      "handle": "warmachine-mercenary-emperor-carver-ultimus-esquire-iii-war-boar-mmd47",
+      "product_type": "Miniatures",
+      "tags": [
+        "no-stock-label",
+        "reworked",
+        "warmachine-dark-operations",
+        "warmachine-mercenary",
+        "warmachine-old-umbrey"
+      ],
+      "body_html": "<p><span>Emperor Carver Ultimus Esquire III &amp; War Boar MMD47</span><b></b></p>\n<p dir=\"ltr\"><span>Down, but not out…</span><b></b></p>\n<p dir=\"ltr\"><span>After suffering life-threatening injury at the hands of the warcaster Asheth Magnus, Emperor Carver Ultimus Esquire III once again takes to the battlefield thanks to the surgery of Dr. Egan Arkadius. His destroyed body has been augmented with limbs of iron and steam. To complement Carver on the battlefield, Arkadius has produced the pinnacle of his fusion of meat and metal—the Most Massive Destruction. Together, they will grind all enemies of the Thornfall Alliance beneath an iron hoof.</span></p>\n<!---->",
+      "variants": [
+        {
+          "id": 45776151380025,
+          "title": "Default Title",
+          "price": "77.99",
+          "available": true
+        }
+      ],
+      "images": [
+        {
+          "src": "https://cdn.shopify.com/s/files/1/0609/0863/4169/files/Warmachine-Merc-ProductShot-2000x2000-Carver_WarBoar_33764fe3-cce2-489a-b21a-38a81b689a1e.png?v=1777555001"
+        }
+      ]
     }
   ]
 }

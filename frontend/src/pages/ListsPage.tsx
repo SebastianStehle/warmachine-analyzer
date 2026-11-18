@@ -13,6 +13,7 @@ import {
   SearchInput,
   SortableColumn,
 } from 'src/components';
+import { useListPrices } from 'src/lib/collection';
 import { useDateRange } from 'src/lib/date-range';
 import { formatPrice } from 'src/lib/format';
 import { useServerSort } from 'src/lib/sorting';
@@ -101,6 +102,9 @@ export function ListsPage() {
       ),
     placeholderData: keepPreviousData,
   });
+
+  const { data: pricesLeft } = useListPrices(data?.items.map(({ id }) => id) ?? []);
+  const priceLeft = new Map(pricesLeft?.items.map(({ listId, price }) => [listId, price]));
 
   const setMultiFilter = (key: 'army' | 'caster' | 'pointLevel', selected: string[]) => {
     const next = new URLSearchParams(searchParams);
@@ -231,7 +235,7 @@ export function ListsPage() {
                     <SortableColumn id="caster">Caster</SortableColumn>
                     <SortableColumn id="points">Points</SortableColumn>
                     <Table.Column>Played</Table.Column>
-                    <SortableColumn id="price">Price</SortableColumn>
+                    <SortableColumn id="price">{pricesLeft ? 'Price left' : 'Price'}</SortableColumn>
                   </Table.Header>
                   <Table.Body>
                     {data.items.map((list) => (
@@ -264,7 +268,18 @@ export function ListsPage() {
                           {list.games > 0 ? `${list.wins} of ${list.games} won` : '–'}
                         </Table.Cell>
                         <Table.Cell className="whitespace-nowrap tabular-nums">
-                          {formatPrice(list.price, list.currency)}
+                          {priceLeft.has(list.id) ? (
+                            <>
+                              {formatPrice(priceLeft.get(list.id)!, list.currency)}
+                              {list.price !== null && priceLeft.get(list.id) !== list.price && (
+                                <span className="text-muted block text-xs line-through">
+                                  {formatPrice(list.price, list.currency)}
+                                </span>
+                              )}
+                            </>
+                          ) : (
+                            formatPrice(list.price, list.currency)
+                          )}
                         </Table.Cell>
                       </Table.Row>
                     ))}

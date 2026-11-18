@@ -32,6 +32,7 @@ const LIMITED_BATTLEGROUP = /\{\{\s*Limited Battlegroup\s*\|([^}]+)\}\}/i;
 const NAME_SEPARATORS = /\s+(?:and|&)\s+|\s*,\s*/i;
 const BOLD_TEXT = /'''(.+?)'''/;
 const WIKI_LINK = /\[\[(?:[^|\]]*\|)?([^\]]*)\]\]/g;
+const PAGE_HEADING = /^=\s*(.+?)\s*=$/;
 const FIRST_FILE = /\[\[\s*(?:File|Image)\s*:\s*([^|\]]+)/i;
 const MISSING_PAGE_SUFFIX = ' (page does not exist)';
 
@@ -253,6 +254,25 @@ export function parsePageImages(json: string, requested: string[]) {
     const match = FIRST_FILE.exec(revisions?.[0]?.slots.main.content ?? '');
     if (match) {
       byTitle.set(title, match[1].trim());
+    }
+  }
+
+  return toRequestedTitles(response, byTitle, requested);
+}
+
+// The first heading is the full name of the model, e.g. "= Emperor {{PAGENAME}} Esquire III =" on the page "Carver Ultimus".
+export function parsePageHeadings(json: string, requested: string[]) {
+  const response = JSON.parse(json) as QueryResponse<{
+    title: string;
+    revisions?: { slots: { main: { content?: string } } }[];
+  }>;
+
+  const byTitle = new Map<string, string>();
+  for (const { title, revisions } of response.query?.pages ?? []) {
+    const lines = (revisions?.[0]?.slots.main.content ?? '').split('\n').map((line) => line.trim());
+    const heading = lines.map((line) => PAGE_HEADING.exec(line)).find((match) => !!match);
+    if (heading) {
+      byTitle.set(title, cleanText(heading[1].replace(/\{\{\s*PAGENAME\s*\}\}/gi, title)));
     }
   }
 

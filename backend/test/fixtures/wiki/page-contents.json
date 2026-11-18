@@ -55,6 +55,22 @@
             }
           }
         ]
+      },
+      {
+        "pageid": 2400,
+        "ns": 0,
+        "title": "Carver Ultimus",
+        "revisions": [
+          {
+            "slots": {
+              "main": {
+                "contentmodel": "wikitext",
+                "contentformat": "text/x-wiki",
+                "content": "= Emperor {{PAGENAME}} Esquire III =\n[[File:Carver Ultimus.jpg|thumb|right|Emperor Carver Ultimus Esquire III & War Boar MMD47]]\n= War Boar MMD47 ="
+              }
+            }
+          }
+        ]
       }
     ]
   }

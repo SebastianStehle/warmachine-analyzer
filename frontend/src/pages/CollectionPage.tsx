@@ -1,13 +1,17 @@
-import { Button, Chip, Link, NumberField, Switch, Table } from '@heroui/react';
+import { Button, Chip, Link, NumberField, Switch, Table, Tabs } from '@heroui/react';
 import { useQuery } from '@tanstack/react-query';
 import { memo, useMemo, useState } from 'react';
 import { ShopProductDto, useClients } from 'src/api';
 import { PageHeader, Pagination, QueryState, SearchInput, StatTile } from 'src/components';
 import { useCollection } from 'src/lib/collection';
 import { formatPrice } from 'src/lib/format';
+import { useTabParam } from 'src/lib/tabs';
+import { PlayableLists } from './PlayableLists';
 
 // The shop has several hundred products, rendering all of them makes every change of a quantity slow.
 const PAGE_SIZE = 50;
+
+const TABS = ['products', 'playable'] as const;
 
 // Only the field of a product subscribes to its quantity, so a change does not render the whole table again.
 const OwnedField = memo(function OwnedField({ shopId, title }: { shopId: string; title: string }) {
@@ -51,6 +55,7 @@ function CollectionStats({ products, currency }: { products: ShopProductDto[]; c
 
 export function CollectionPage() {
   const clients = useClients();
+  const tabs = useTabParam(TABS, 'products');
   const clear = useCollection((state) => state.clear);
   const hasOwned = useCollection((state) => Object.keys(state.owned).length > 0);
   const [search, setSearch] = useState('');
@@ -85,100 +90,123 @@ export function CollectionPage() {
       <PageHeader
         kicker="Your models"
         title="Collection"
-        description="Add the products you already own. The lists then only show the price of the products you still need. The collection is only stored in this browser."
-        actions={
-          <SearchInput
-            value={search}
-            onChange={(value) => {
-              setSearch(value);
-              setPage(0);
-            }}
-            placeholder="Search product or model"
-          />
-        }
+        description="Add the products you already own. The lists then only show the price of the products you still need, and you see which lists you can already build. The collection is only stored in this browser."
       />
 
-      <CollectionStats products={products} currency={data?.currency ?? null} />
+      <Tabs {...tabs}>
+        <Tabs.ListContainer>
+          <Tabs.List aria-label="Collection" className="w-fit">
+            <Tabs.Tab id="products" className="font-display tracking-wide uppercase">
+              Products
+              <Tabs.Indicator />
+            </Tabs.Tab>
+            <Tabs.Tab id="playable" className="font-display tracking-wide uppercase">
+              Playable lists
+              <Tabs.Indicator />
+            </Tabs.Tab>
+          </Tabs.List>
+        </Tabs.ListContainer>
+        <Tabs.Panel className="flex flex-col gap-4 pt-4" id="products">
+          <CollectionStats products={products} currency={data?.currency ?? null} />
 
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <Switch
-          isSelected={ownedOnly}
-          onChange={(value) => {
-            setOwnedOnly(value);
-            setPage(0);
-          }}
-        >
-          <Switch.Content>
-            <Switch.Control>
-              <Switch.Thumb />
-            </Switch.Control>
-            Only owned products
-          </Switch.Content>
-        </Switch>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <SearchInput
+              value={search}
+              onChange={(value) => {
+                setSearch(value);
+                setPage(0);
+              }}
+              placeholder="Search product or model"
+            />
 
-        {hasOwned && (
-          <Button size="sm" variant="ghost" onPress={clear}>
-            Remove all
-          </Button>
-        )}
-      </div>
+            <Switch
+              isSelected={ownedOnly}
+              onChange={(value) => {
+                setOwnedOnly(value);
+                setPage(0);
+              }}
+            >
+              <Switch.Content>
+                <Switch.Control>
+                  <Switch.Thumb />
+                </Switch.Control>
+                Only owned products
+              </Switch.Content>
+            </Switch>
 
-      <QueryState
-        isLoading={isLoading}
-        error={error}
-        isEmpty={visible.length === 0}
-        emptyText={
-          products.length === 0
-            ? 'No products yet. Import the shop with npm run crawl -- --shop.'
-            : 'No products match the filter.'
-        }
-      >
-        <Table>
-          <Table.ScrollContainer>
-            <Table.Content aria-label="Products">
-              <Table.Header>
-                <Table.Column isRowHeader>Product</Table.Column>
-                <Table.Column>Models</Table.Column>
-                <Table.Column>Price</Table.Column>
-                <Table.Column>Owned</Table.Column>
-              </Table.Header>
-              <Table.Body>
-                {pageItems.map((product) => (
-                  <Table.Row key={product.shopId} id={product.shopId}>
-                    <Table.Cell>
-                      <div className="flex items-center gap-3">
-                        {product.imageUrl && (
-                          <img src={product.imageUrl} alt="" className="h-10 w-10 shrink-0 rounded object-cover" loading="lazy" />
-                        )}
-                        <Link href={product.url} target="_blank" rel="noreferrer">
-                          {product.title}
-                          <Link.Icon />
-                        </Link>
-                        {!product.available && (
-                          <Chip size="sm" color="warning" variant="soft">
-                            Sold out
-                          </Chip>
-                        )}
-                      </div>
-                    </Table.Cell>
-                    <Table.Cell className="text-muted text-sm">
-                      {product.models.map(({ name, quantity }) => (quantity > 1 ? `${quantity}× ${name}` : name)).join(', ')}
-                    </Table.Cell>
-                    <Table.Cell className="whitespace-nowrap tabular-nums">
-                      {formatPrice(product.price, data?.currency ?? null)}
-                    </Table.Cell>
-                    <Table.Cell>
-                      <OwnedField shopId={product.shopId} title={product.title} />
-                    </Table.Cell>
-                  </Table.Row>
-                ))}
-              </Table.Body>
-            </Table.Content>
-          </Table.ScrollContainer>
-        </Table>
+            {hasOwned && (
+              <Button size="sm" variant="ghost" onPress={clear}>
+                Remove all
+              </Button>
+            )}
+          </div>
 
-        <Pagination page={page} pageSize={PAGE_SIZE} total={visible.length} onChange={setPage} />
-      </QueryState>
+          <QueryState
+            isLoading={isLoading}
+            error={error}
+            isEmpty={visible.length === 0}
+            emptyText={
+              products.length === 0
+                ? 'No products yet. Import the shop with npm run crawl -- --shop.'
+                : 'No products match the filter.'
+            }
+          >
+            <Table>
+              <Table.ScrollContainer>
+                <Table.Content aria-label="Products">
+                  <Table.Header>
+                    <Table.Column isRowHeader>Product</Table.Column>
+                    <Table.Column>Models</Table.Column>
+                    <Table.Column>Price</Table.Column>
+                    <Table.Column>Owned</Table.Column>
+                  </Table.Header>
+                  <Table.Body>
+                    {pageItems.map((product) => (
+                      <Table.Row key={product.shopId} id={product.shopId}>
+                        <Table.Cell>
+                          <div className="flex items-center gap-3">
+                            {product.imageUrl && (
+                              <img
+                                src={product.imageUrl}
+                                alt=""
+                                className="h-10 w-10 shrink-0 rounded object-cover"
+                                loading="lazy"
+                              />
+                            )}
+                            <Link href={product.url} target="_blank" rel="noreferrer">
+                              {product.title}
+                              <Link.Icon />
+                            </Link>
+                            {!product.available && (
+                              <Chip size="sm" color="warning" variant="soft">
+                                Sold out
+                              </Chip>
+                            )}
+                          </div>
+                        </Table.Cell>
+                        <Table.Cell className="text-muted text-sm">
+                          {product.models.map(({ name, quantity }) => (quantity > 1 ? `${quantity}× ${name}` : name)).join(', ')}
+                        </Table.Cell>
+                        <Table.Cell className="whitespace-nowrap tabular-nums">
+                          {formatPrice(product.price, data?.currency ?? null)}
+                        </Table.Cell>
+                        <Table.Cell>
+                          <OwnedField shopId={product.shopId} title={product.title} />
+                        </Table.Cell>
+                      </Table.Row>
+                    ))}
+                  </Table.Body>
+                </Table.Content>
+              </Table.ScrollContainer>
+            </Table>
+
+            <Pagination page={page} pageSize={PAGE_SIZE} total={visible.length} onChange={setPage} />
+          </QueryState>
+        </Tabs.Panel>
+        <Tabs.Panel className="pt-4" id="playable">
+          <PlayableLists />
+        </Tabs.Panel>
+      </Tabs>
     </>
   );
 }

@@ -1,6 +1,7 @@
 {
   "parse": {
     "title": "Lanyssa Ryssyl, Aransor of Vengeance",
-    "wikitext": "= {{PAGENAME}} =\n<span style=\"font-size: 1.2em;\">'''[[Dusk Prime|Dusk]] [[Dusk Fane of Nyrro | Fane of Nyrro]] [[Final Hunt Cadre]] [[Nyss]] Character [[Solo]]'''</span><br>\n== Attributes ==\n=== Abilities ===\n* {{Limited Battlegroup |Benkei and Sasha}}\n== Weapons ==\n== Spells ==\n= Benkei =\n== Attributes ==\n=== Abilities ===\n== Weapons ==\n==Animus==\n= Sasha =\n== Attributes ==\n=== Abilities ===\n== Weapons ==\n==Animus=="
+    "pageid": 4752,
+    "wikitext": "= {{PAGENAME}} =\n<span style=\"font-size: 1.2em;\">'''[[Dusk Prime|Dusk]] [[Dusk Fane of Nyrro | Fane of Nyrro]] [[Final Hunt Cadre]] [[Nyss]] Character [[Solo]]'''</span><br>\n== Attributes ==\n| '''Ryssyl 3''' || <!--Spd--> 6 || <!--MAT--> 7 || <!--Def--> 16 || <!--Arm--> 14 || <!--Health--> 10 || <!--PC--> 18 || <!--FA--> C\n=== Abilities ===\n* {{Limited Battlegroup |Benkei and Sasha}}\n== Weapons ==\n== Spells ==\n= Benkei =\n== Attributes ==\n| '''Benkei 2''' || <!--Spd--> 7 || <!--MAT--> 6 || <!--Def--> 14 || <!--Arm--> 16 || <!--Fury--> 3 || <!--Thr--> 9 || <!--HP--> 25|| <!--PC--> -|| <!--FA--> C\n=== Abilities ===\n== Weapons ==\n{{Melee Weapon|Bite|<!--MAT-->6|<!--RNG-->1|<!--POW-->15|* {{Critical Knockdown}}\n{{Melee Weapon|Claws|<!--MAT-->6|<!--RNG-->1|<!--POW-->12|\n==Animus==\n= Sasha =\n== Attributes ==\n| '''Sasha 2''' || <!--Spd--> 7 || <!--MAT--> 6 || <!--Def--> 14 || <!--Arm--> 16 || <!--Fury--> 3 || <!--Thr--> 9 || <!--HP--> 25|| <!--PC--> -|| <!--FA--> C\n=== Abilities ===\n== Weapons ==\n{{Melee Weapon|Bite|<!--MAT-->6|<!--RNG-->1|<!--POW-->15|* {{Critical Knockdown}}\n{{Melee Weapon|Claws|<!--MAT-->6|<!--RNG-->1|<!--POW-->12|\n==Animus=="
   }
 }

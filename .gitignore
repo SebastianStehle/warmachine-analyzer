@@ -4,6 +4,8 @@ bin
 
 .idea
 .env
+.dump
 
 # API client is generated from the committed OpenAPI spec with `npm run generate`.
 frontend/src/api/generated
+/*.dump

@@ -39,6 +39,22 @@ export interface ListSummary {
   wins: number;
 }
 
+export type PlayableListFilter = Omit<ListFilter, 'sort' | 'order'>;
+
+export interface PlayableList extends ListSummary {
+  missingModels: number;
+}
+
+export interface UnmatchedEntry {
+  name: string;
+  kind: ListEntryKind;
+  entries: number;
+  lists: number;
+  armies: string[];
+  lastSeen: string;
+  exampleListId: number;
+}
+
 export interface ListEntry {
   name: string;
   points: number | null;

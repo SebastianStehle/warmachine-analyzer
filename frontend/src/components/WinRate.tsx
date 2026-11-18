@@ -2,7 +2,7 @@ import classNames from 'classnames';
 import { formatPercent } from 'src/lib/format';
 
 // Below this number of games a win rate says very little.
-const MIN_RELIABLE_GAMES = 10;
+export const MIN_RELIABLE_GAMES = 10;
 const STRONG_WIN_RATE = 0.55;
 const WEAK_WIN_RATE = 0.45;
 

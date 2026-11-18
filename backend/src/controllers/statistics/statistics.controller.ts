@@ -1,9 +1,9 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
 import { QueryBus } from '@nestjs/cqrs';
 import { ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
-import { GetFactionDetailsQuery, GetFactionStatsQuery } from 'src/domain/statistics';
+import { GetCasterDetailsQuery, GetFactionDetailsQuery, GetFactionStatsQuery, GetMatchupsQuery } from 'src/domain/statistics';
 import { DateRangeQueryDto } from '../shared';
-import { FactionDetailsDto, FactionStatsListDto } from './dtos';
+import { CasterDetailsDto, FactionDetailsDto, FactionStatsListDto, MatchupMatrixDto, MatchupsQueryDto } from './dtos';
 
 @Controller('api/stats')
 @ApiTags('stats')
@@ -17,6 +17,25 @@ export class StatisticsController {
     const { factions } = await this.queryBus.execute(new GetFactionStatsQuery(range));
 
     return FactionStatsListDto.fromDomain(factions);
+  }
+
+  @Get('matchups')
+  @ApiOperation({ operationId: 'getMatchups', description: 'Gets the matchup matrix of factions or armies.' })
+  @ApiOkResponse({ type: MatchupMatrixDto })
+  async getMatchups(@Query() { grouping, from, to }: MatchupsQueryDto) {
+    const { matrix } = await this.queryBus.execute(new GetMatchupsQuery(grouping ?? 'faction', { from, to }));
+
+    return MatchupMatrixDto.fromDomain(matrix);
+  }
+
+  @Get('casters/:caster')
+  @ApiOperation({ operationId: 'getCasterDetails', description: 'Gets armies, models and matchups of a caster.' })
+  @ApiParam({ name: 'caster', description: 'The name of the caster.', required: true, type: 'string' })
+  @ApiOkResponse({ type: CasterDetailsDto })
+  async getCasterDetails(@Param('caster') caster: string, @Query() range: DateRangeQueryDto) {
+    const { details } = await this.queryBus.execute(new GetCasterDetailsQuery(caster, range));
+
+    return CasterDetailsDto.fromDomain(details);
   }
 
   @Get('factions/:army')

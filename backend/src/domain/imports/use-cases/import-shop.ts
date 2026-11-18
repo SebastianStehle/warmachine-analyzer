@@ -4,7 +4,7 @@ import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, In, Not } from 'typeorm';
 import { ShopProductEntity, ShopProductModelEntity } from 'src/domain/database';
 import { loadModelMatcher } from 'src/domain/lists/catalog';
-import { ModelMatcher } from 'src/domain/lists/model-matcher';
+import { CatalogModel, ModelMatcher } from 'src/domain/lists/model-matcher';
 import { parseProductPage, ShopClient, ShopProduct } from 'src/domain/shop';
 import { UpdatePrices } from './update-prices';
 
@@ -89,19 +89,43 @@ export class ImportShopHandler implements ICommandHandler<ImportShop, ImportShop
     return new ImportShopResult(products.length, lists);
   }
 
-  // The shop tags products with their faction and army, which resolves short names to the right model.
+  // The shop tags products with their faction and army, which resolves short names to the right model. A product for
+  // several armies contains the version of each army, e.g. "Lanyssa Ryssyl" for House Kallyss and Fane of Nyrro.
   private matchContents({ armyTags, contents }: ShopProduct, matcher: ModelMatcher) {
-    const armies = armyTags.map((tag) => matcher.findArmy(tag)?.name).filter((army) => !!army);
+    let armies = armyTags.map((tag) => matcher.findArmy(tag)?.name).filter((army): army is string => !!army);
+
+    // Some products are only tagged with the faction, e.g. "warmachine-khador", then every army of it is a candidate.
+    if (armies.length === 0) {
+      armies = armyTags.flatMap((tag) => matcher.findArmiesOfFaction(tag).map(({ name }) => name));
+    }
 
     const result = new Map<number, number>();
     for (const { name, quantity } of contents) {
-      const model = [name, name.replace(LEADING_ARTICLE, '')]
-        .flatMap((candidate) => [...armies, null].map((army) => matcher.match(candidate, army)))
-        .find((match) => !!match);
-      if (model) {
-        result.set(model.id, (result.get(model.id) ?? 0) + quantity);
-      } else {
+      const candidates = [name, name.replace(LEADING_ARTICLE, '')];
+
+      const models = new Set<CatalogModel>();
+      for (const army of armies) {
+        const model =
+          candidates.map((candidate) => matcher.match(candidate, army)).find((match) => !!match) ??
+          candidates.map((candidate) => matcher.matchEnding(candidate, army)).find((match) => !!match);
+        if (model) {
+          models.add(model);
+        }
+      }
+
+      if (models.size === 0) {
+        const model = candidates.map((candidate) => matcher.match(candidate, null)).find((match) => !!match);
+        if (model) {
+          models.add(model);
+        }
+      }
+
+      if (models.size === 0) {
         this.logger.debug(`No model found for '${name}' in the shop.`);
+      }
+
+      for (const { id } of models) {
+        result.set(id, (result.get(id) ?? 0) + quantity);
       }
     }
 

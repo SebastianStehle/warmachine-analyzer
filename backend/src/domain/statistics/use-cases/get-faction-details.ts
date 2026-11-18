@@ -2,20 +2,10 @@ import { NotFoundException } from '@nestjs/common';
 import { IQueryHandler, Query, QueryHandler } from '@nestjs/cqrs';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, In } from 'typeorm';
-import {
-  ArmyEntity,
-  ArmyListEntity,
-  ArmyModelEntity,
-  EventEntity,
-  GameEntity,
-  GamePlayerEntity,
-  GameResult,
-  ListEntryEntity,
-  ModelEntity,
-  ModelType,
-} from 'src/domain/database';
-import { CasterStats, DateRange, FactionDetails, MatchupStats, UnitStats } from '../interfaces';
-import { applyDateRange, byGamesDescending, RecordCounter, RecordRow, selectRecord, toRecord } from '../utils';
+import { ArmyEntity, ArmyListEntity, ArmyModelEntity, EventEntity, ModelEntity } from 'src/domain/database';
+import { CasterStats, DateRange, FactionDetails, MatchupStats } from '../interfaces';
+import { createGamesQuery, loadUnitStats } from '../unit-stats';
+import { applyDateRange, byGamesDescending, RecordRow, selectRecord, toRecord } from '../utils';
 import { loadFactionStats } from './get-faction-stats';
 
 export class GetFactionDetailsQuery extends Query<GetFactionDetailsResult> {
@@ -30,9 +20,6 @@ export class GetFactionDetailsQuery extends Query<GetFactionDetailsResult> {
 export class GetFactionDetailsResult {
   constructor(public readonly details: FactionDetails) {}
 }
-
-// Entries that match a model of the wiki are grouped by the model, others by their name in the list.
-const MODEL_NAME = 'COALESCE(m.name, le.baseName)';
 
 @QueryHandler(GetFactionDetailsQuery)
 export class GetFactionDetailsHandler implements IQueryHandler<GetFactionDetailsQuery, GetFactionDetailsResult> {
@@ -51,29 +38,17 @@ export class GetFactionDetailsHandler implements IQueryHandler<GetFactionDetails
 
     const catalog = await this.loadCatalog(army.id);
 
-    const [casters, units, matchups] = await Promise.all([
+    const [casters, { units, knownListRecord }, matchups] = await Promise.all([
       this.loadCasters(army.id, range, catalog),
       this.loadUnits(army.id, range, catalog),
       this.loadMatchups(army.id, range),
     ]);
 
-    return new GetFactionDetailsResult({ stats, casters, units, matchups });
+    return new GetFactionDetailsResult({ stats, knownListRecord, casters, units, matchups });
   }
 
   private gamesQuery(armyId: number, range: DateRange) {
-    return applyDateRange(
-      this.dataSource
-        .getRepository(GamePlayerEntity)
-        .createQueryBuilder('gp')
-        .innerJoin(GameEntity, 'g', 'g.id = gp.gameId')
-        .innerJoin(EventEntity, 'e', 'e.id = g.eventId')
-        .where('gp.armyId = :armyId', { armyId })
-        .andWhere('gp.opponentId IS NOT NULL')
-        .andWhere('gp.opponentArmyId IS NOT NULL')
-        .andWhere('gp.armyId <> gp.opponentArmyId'),
-      'e',
-      range,
-    );
+    return createGamesQuery(this.dataSource, { column: 'armyId', id: armyId }, range);
   }
 
   // The models of the army from the wiki, so that models nobody played yet are shown as well.
@@ -139,67 +114,11 @@ export class GetFactionDetailsHandler implements IQueryHandler<GetFactionDetails
   }
 
   private async loadUnits(armyId: number, range: DateRange, catalog: ModelEntity[]) {
-    const entries = await applyDateRange(
-      this.dataSource
-        .getRepository(ListEntryEntity)
-        .createQueryBuilder('le')
-        .innerJoin(ArmyListEntity, 'l', 'l.id = le.listId')
-        .innerJoin(EventEntity, 'e', 'e.id = l.eventId')
-        .leftJoin(ModelEntity, 'm', 'm.id = le.modelId')
-        .select(MODEL_NAME, 'name')
-        .addSelect('MAX(m.type)', 'type')
-        .addSelect('MAX(m.wikiPage)', 'wikiPage')
-        .addSelect('COUNT(DISTINCT le.listId)', 'lists')
-        .addSelect('COUNT(*)', 'copies')
-        .addSelect('AVG(le.points)', 'averagePoints')
-        .where('l.armyId = :armyId', { armyId })
-        .andWhere("le.kind = 'model'")
-        .groupBy(MODEL_NAME),
-      'e',
-      range,
-    ).getRawMany<{
-      name: string;
-      type: ModelType | null;
-      wikiPage: string | null;
-      lists: string;
-      copies: string;
-      averagePoints: string | null;
-    }>();
-
-    // A list can contain the same unit several times, so the games are made distinct per unit first.
-    const games = await this.gamesQuery(armyId, range)
-      .innerJoin(ListEntryEntity, 'le', 'le.listId = gp.listId')
-      .leftJoin(ModelEntity, 'm', 'm.id = le.modelId')
-      .select(MODEL_NAME, 'name')
-      .addSelect('gp.id', 'gamePlayerId')
-      .addSelect('gp.result', 'result')
-      .andWhere("le.kind = 'model'")
-      .distinct(true)
-      .getRawMany<{ name: string; gamePlayerId: number; result: GameResult }>();
-
-    const records = new Map<string, RecordCounter>();
-    for (const { name, result } of games) {
-      let counter = records.get(name);
-      if (!counter) {
-        counter = new RecordCounter();
-        records.set(name, counter);
-      }
-      counter.add(result);
-    }
-
-    const result: UnitStats[] = entries.map(({ name, type, wikiPage, lists, copies, averagePoints }) => ({
-      name,
-      type,
-      wikiPage,
-      lists: Number(lists),
-      copies: Number(copies),
-      averagePoints: averagePoints !== null ? Math.round(Number(averagePoints) * 10) / 10 : null,
-      ...(records.get(name)?.toRecord() ?? toRecord()),
-    }));
+    const { units, knownListRecord } = await loadUnitStats(this.dataSource, { column: 'armyId', id: armyId }, range);
 
     for (const { name, type, wikiPage } of catalog) {
-      if (type !== 'leader' && !result.some((x) => x.name === name)) {
-        result.push({
+      if (type !== 'leader' && !units.some((x) => x.name === name)) {
+        units.push({
           name,
           type: type ?? null,
           wikiPage: wikiPage ?? null,
@@ -207,11 +126,14 @@ export class GetFactionDetailsHandler implements IQueryHandler<GetFactionDetails
           copies: 0,
           averagePoints: null,
           ...toRecord(),
+          gamesWithout: 0,
+          winRateWithout: null,
+          impact: null,
         });
       }
     }
 
-    return result.sort(byGamesDescending);
+    return { units: units.sort(byGamesDescending), knownListRecord };
   }
 
   private async loadMatchups(armyId: number, range: DateRange) {

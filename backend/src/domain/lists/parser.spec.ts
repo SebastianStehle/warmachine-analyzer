@@ -90,12 +90,12 @@ describe('parseArmyLists', () => {
     ]);
   });
 
-  it('should find the caster when free entries are listed before it', () => {
+  it('should find the caster and skip cards when they are listed before it', () => {
     const [fane] = parseFixture('fane-hunger-before-caster');
     const [kithguard] = parseFixture('kithguard-trapdoors-newlines');
 
     expect(fane.caster).toEqual('Nymara, The Shadowblade');
-    expect(modelsOf(fane).slice(0, 3)).toEqual(['Hunger', 'Horkos', 'Strygon']);
+    expect(modelsOf(fane).slice(0, 3)).toEqual(['Horkos', 'Strygon', 'Strygon']);
     expect(modulesOf(fane)).toContain('CONDITIONING - Blind Obedience');
 
     expect(kithguard.caster).toEqual('Captain Tarja Grimtusk');

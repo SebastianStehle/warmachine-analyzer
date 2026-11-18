@@ -1,7 +1,7 @@
 import { IQueryHandler, Query, QueryHandler } from '@nestjs/cqrs';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
-import { toSearchPattern, toSqlOrder } from 'src/domain/common/query';
+import { PageRequest, toSearchPattern, toSqlOrder } from 'src/domain/common/query';
 import {
   ArmyEntity,
   ArmyListEntity,
@@ -153,6 +153,55 @@ export function toListSummary(
   };
 }
 
+export function createFilteredListQuery(dataSource: DataSource, filter: Omit<ListFilter, keyof PageRequest | 'sort' | 'order'>) {
+  const { army, caster, pointLevel, maxRank, unit, playerId, eventId, search } = filter;
+
+  const query = applyDateRange(createListQuery(dataSource), 'e', filter);
+
+  if (army && army.length > 0) {
+    query.andWhere('a.name IN (:...army)', { army });
+  }
+
+  if (caster && caster.length > 0) {
+    query.andWhere('c.name IN (:...caster)', { caster });
+  }
+
+  if (pointLevel && pointLevel.length > 0) {
+    query.andWhere('l.pointLevel IN (:...pointLevel)', { pointLevel });
+  }
+
+  if (maxRank) {
+    query.andWhere('p.rank <= :maxRank', { maxRank });
+  }
+
+  if (playerId) {
+    query.andWhere('l.playerId = :playerId', { playerId });
+  }
+
+  if (eventId) {
+    query.andWhere('l.eventId = :eventId', { eventId });
+  }
+
+  if (search) {
+    query.andWhere(
+      '(LOWER(l.title) LIKE :search OR LOWER(c.name) LIKE :search OR LOWER(pl.name) LIKE :search OR LOWER(e.name) LIKE :search)',
+      { search: toSearchPattern(search) },
+    );
+  }
+
+  if (unit) {
+    const withUnit = dataSource
+      .getRepository(ListEntryEntity)
+      .createQueryBuilder('le')
+      .select('le.listId')
+      .where('le.baseName = :unit');
+
+    query.andWhere(`l.id IN (${withUnit.getQuery()})`, { unit });
+  }
+
+  return query;
+}
+
 @QueryHandler(GetListsQuery)
 export class GetListsHandler implements IQueryHandler<GetListsQuery, GetListsResult> {
   constructor(
@@ -161,50 +210,9 @@ export class GetListsHandler implements IQueryHandler<GetListsQuery, GetListsRes
   ) {}
 
   async execute({ filter }: GetListsQuery): Promise<GetListsResult> {
-    const { army, caster, pointLevel, maxRank, unit, playerId, eventId, search, sort, order, page, pageSize } = filter;
+    const { sort, order, page, pageSize } = filter;
 
-    const query = applyDateRange(createListQuery(this.dataSource), 'e', filter);
-
-    if (army && army.length > 0) {
-      query.andWhere('a.name IN (:...army)', { army });
-    }
-
-    if (caster && caster.length > 0) {
-      query.andWhere('c.name IN (:...caster)', { caster });
-    }
-
-    if (pointLevel && pointLevel.length > 0) {
-      query.andWhere('l.pointLevel IN (:...pointLevel)', { pointLevel });
-    }
-
-    if (maxRank) {
-      query.andWhere('p.rank <= :maxRank', { maxRank });
-    }
-
-    if (playerId) {
-      query.andWhere('l.playerId = :playerId', { playerId });
-    }
-
-    if (eventId) {
-      query.andWhere('l.eventId = :eventId', { eventId });
-    }
-
-    if (search) {
-      query.andWhere(
-        '(LOWER(l.title) LIKE :search OR LOWER(c.name) LIKE :search OR LOWER(pl.name) LIKE :search OR LOWER(e.name) LIKE :search)',
-        { search: toSearchPattern(search) },
-      );
-    }
-
-    if (unit) {
-      const withUnit = this.dataSource
-        .getRepository(ListEntryEntity)
-        .createQueryBuilder('le')
-        .select('le.listId')
-        .where('le.baseName = :unit');
-
-      query.andWhere(`l.id IN (${withUnit.getQuery()})`, { unit });
-    }
+    const query = createFilteredListQuery(this.dataSource, filter);
 
     const total = await query.getCount();
 

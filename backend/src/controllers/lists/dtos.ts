@@ -11,7 +11,9 @@ import {
   ListProduct,
   ListSortField,
   ListSummary,
+  PlayableList,
   PointLevelOption,
+  UnmatchedEntry,
 } from 'src/domain/lists';
 import { DateRangeQueryDto, PageQueryDto, SearchQueryDto, toArray, toEnumObject } from '../shared';
 import { MODEL_TYPES } from '../statistics/dtos';
@@ -456,6 +458,107 @@ export class ListPricesDto {
     const result = new ListPricesDto();
     result.items = items.map(ListPriceDto.fromDomain);
     result.currency = currency;
+    return result;
+  }
+}
+
+export class PlayableListsRequestDto extends IntersectionType(DateRangeQueryDto, PageQueryDto) {
+  @ApiProperty({ description: 'Only lists of these armies.', required: false, type: [String] })
+  @IsOptional()
+  @IsString({ each: true })
+  army?: string[];
+
+  @ApiProperty({ description: 'Only lists with one of these casters.', required: false, type: [String] })
+  @IsOptional()
+  @IsString({ each: true })
+  caster?: string[];
+
+  @ApiProperty({ description: 'Only lists for these point levels.', required: false, type: [Number] })
+  @IsOptional()
+  @IsInt({ each: true })
+  pointLevel?: number[];
+
+  @ApiProperty({ description: 'Only lists of players who placed at this rank or better.', required: false, type: Number })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  maxRank?: number;
+
+  @ApiProperty({ description: 'The products that are already owned.', required: true, type: [OwnedProductDto] })
+  @ValidateNested({ each: true })
+  @Type(() => OwnedProductDto)
+  owned: OwnedProductDto[];
+}
+
+export class PlayableListDto extends ListSummaryDto {
+  @ApiProperty({
+    description: 'The models of the list that are not in the collection, including entries that are not in the catalog.',
+    required: true,
+  })
+  missingModels: number;
+
+  static fromDomain(source: PlayableList) {
+    const result = new PlayableListDto();
+    Object.assign(result, source);
+    return result;
+  }
+}
+
+export class PlayableListsDto {
+  @ApiProperty({ description: 'The lists, fewest missing models first.', required: true, type: [PlayableListDto] })
+  items: PlayableListDto[];
+
+  @ApiProperty({ description: 'The total number of lists.', required: true })
+  total: number;
+
+  @ApiProperty({ description: 'The number of lists without missing models.', required: true })
+  playable: number;
+
+  static fromDomain(items: PlayableList[], total: number, playable: number) {
+    const result = new PlayableListsDto();
+    result.items = items.map(PlayableListDto.fromDomain);
+    result.total = total;
+    result.playable = playable;
+    return result;
+  }
+}
+
+export class UnmatchedEntryDto {
+  @ApiProperty({ description: 'The name as written in the lists, without numbering.', required: true })
+  name: string;
+
+  @ApiProperty({ description: 'The kind of entry.', required: true, enum: LIST_ENTRY_KINDS, enumName: 'ListEntryKind' })
+  kind: ListEntryKind;
+
+  @ApiProperty({ description: 'The number of entries.', required: true })
+  entries: number;
+
+  @ApiProperty({ description: 'The number of lists containing it.', required: true })
+  lists: number;
+
+  @ApiProperty({ description: 'The armies of these lists.', required: true, type: [String] })
+  armies: string[];
+
+  @ApiProperty({ description: 'The date of the latest event.', required: true })
+  lastSeen: string;
+
+  @ApiProperty({ description: 'A list of the latest event containing it.', required: true })
+  exampleListId: number;
+
+  static fromDomain({ name, kind, entries, lists, armies, lastSeen, exampleListId }: UnmatchedEntry) {
+    const result = new UnmatchedEntryDto();
+    Object.assign(result, { name, kind, entries, lists, armies, lastSeen, exampleListId });
+    return result;
+  }
+}
+
+export class UnmatchedEntriesDto {
+  @ApiProperty({ description: 'The entries, most lists first.', required: true, type: [UnmatchedEntryDto] })
+  items: UnmatchedEntryDto[];
+
+  static fromDomain(items: UnmatchedEntry[]) {
+    const result = new UnmatchedEntriesDto();
+    result.items = items.map(UnmatchedEntryDto.fromDomain);
     return result;
   }
 }

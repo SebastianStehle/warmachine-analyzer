@@ -12,7 +12,7 @@ import {
   PlayerEntity,
 } from 'src/domain/database';
 import { loadModelMatcher } from 'src/domain/lists/catalog';
-import { CatalogArmy, matchListEntries, ModelMatcher } from 'src/domain/lists/model-matcher';
+import { CatalogArmy, matchListEntries, ModelMatcher, resolveListArmy } from 'src/domain/lists/model-matcher';
 import { isSameCaster, parseArmyLists, ParsedList } from 'src/domain/lists/parser';
 import {
   EventInfo,
@@ -50,6 +50,7 @@ export class ImportEventResult {
 
 interface StoredList {
   id: number;
+  armyId: number;
   casterId: number | null;
   casterName: string | null;
 }
@@ -242,17 +243,32 @@ export class ImportEventHandler implements ICommandHandler<ImportEvent, ImportEv
     );
 
     const storedLists = new Map<number, StoredList[]>();
+    const playerArmies = new Map<number, number | null>();
 
     for (const standing of standings) {
       const { playerId } = standing;
-      // Longshanks is the source of truth for the army, the list header is free text.
-      const catalogArmy = matcher.findArmy(standing.army ?? lists.get(playerId)?.find(({ list }) => list.army)?.list.army);
+      const playerLists = lists.get(playerId) ?? [];
+      const registered = matcher.findArmy(standing.army ?? playerLists.find(({ list }) => list.army)?.list.army);
+
+      // Armies that are not in the wiki are ignored, so all statistics only contain armies of the catalog.
+      const resolved: { playerList: PlayerList; army: CatalogArmy }[] = [];
+      for (const playerList of playerLists) {
+        const army = resolveListArmy(playerList.list, matcher, registered);
+        if (army) {
+          resolved.push({ playerList, army });
+        }
+      }
+
+      // Some players are registered with the wrong army, their lists tell the real one when they all agree.
+      const listArmies = new Set(resolved.map(({ army }) => army.id));
+      const armyId = listArmies.size === 1 ? [...listArmies][0] : (registered?.id ?? null);
+      playerArmies.set(playerId, armyId);
 
       await manager.save(ParticipantEntity, {
         eventId,
         playerId,
         rank: standing.rank,
-        armyId: catalogArmy?.id ?? null,
+        armyId,
         tournamentPoints: standing.tournamentPoints,
         wins: standing.wins,
         losses: standing.losses,
@@ -261,15 +277,12 @@ export class ImportEventHandler implements ICommandHandler<ImportEvent, ImportEv
         armyPoints: standing.armyPoints,
       });
 
-      // Armies that are not in the wiki are ignored, so all statistics only contain armies of the catalog.
-      if (catalogArmy) {
-        const saved: StoredList[] = [];
-        for (const playerList of lists.get(playerId) ?? []) {
-          saved.push(await this.saveList(manager, matcher, eventId, playerId, catalogArmy, playerList, existingListIds));
-        }
-
-        storedLists.set(playerId, saved);
+      const saved: StoredList[] = [];
+      for (const { playerList, army } of resolved) {
+        saved.push(await this.saveList(manager, matcher, eventId, playerId, army, playerList, existingListIds));
       }
+
+      storedLists.set(playerId, saved);
     }
 
     if (existingListIds.size > 0) {
@@ -287,6 +300,12 @@ export class ImportEventHandler implements ICommandHandler<ImportEvent, ImportEv
       });
 
       const [first, second] = game.sides;
+      const sides = new Map(
+        game.sides
+          .filter((side): side is GameSide => !!side?.playerId)
+          .map((side) => [side, this.resolveSide(matcher, side, storedLists.get(side.playerId!) ?? [], playerArmies)]),
+      );
+
       for (const [side, opponent] of [
         [first, second],
         [second, first],
@@ -295,15 +314,18 @@ export class ImportEventHandler implements ICommandHandler<ImportEvent, ImportEv
           continue;
         }
 
+        const own = sides.get(side)!;
+        const other = !game.isBye && opponent ? sides.get(opponent) : undefined;
+
         await manager.save(GamePlayerEntity, {
           gameId: game.id,
           playerId: side.playerId,
           opponentId: game.isBye ? null : (opponent?.playerId ?? null),
-          armyId: matcher.findArmy(side.army)?.id ?? null,
-          opponentArmyId: game.isBye ? null : (matcher.findArmy(opponent?.army)?.id ?? null),
-          casterId: this.findLeaderId(matcher, side),
-          opponentCasterId: game.isBye || !opponent ? null : this.findLeaderId(matcher, opponent),
-          listId: this.findPlayedList(matcher, side, storedLists.get(side.playerId) ?? [])?.id ?? null,
+          armyId: own.armyId,
+          opponentArmyId: game.isBye ? null : (other?.armyId ?? matcher.findArmy(opponent?.army)?.id ?? null),
+          casterId: own.casterId,
+          opponentCasterId: game.isBye || !opponent ? null : (other?.casterId ?? this.findLeaderId(matcher, opponent, null)),
+          listId: own.list?.id ?? null,
           result: side.result,
           controlPoints: side.controlPoints,
           armyPoints: side.armyPoints,
@@ -370,21 +392,31 @@ export class ImportEventHandler implements ICommandHandler<ImportEvent, ImportEv
       })),
     );
 
-    return { id, casterId, casterName: list.caster };
+    return { id, armyId: army.id, casterId, casterName: list.caster };
   }
 
-  private findLeaderId(matcher: ModelMatcher, { caster, army }: GameSide) {
+  // The played list knows the real army and caster, the game page only has what the player registered.
+  private resolveSide(matcher: ModelMatcher, side: GameSide, candidates: StoredList[], playerArmies: Map<number, number | null>) {
+    const list = this.findPlayedList(matcher, side, candidates);
+    const armyId = list?.armyId ?? playerArmies.get(side.playerId!) ?? matcher.findArmy(side.army)?.id ?? null;
+    const casterId = list?.casterId ?? this.findLeaderId(matcher, side, armyId);
+
+    return { list, armyId, casterId };
+  }
+
+  private findLeaderId(matcher: ModelMatcher, { caster, army }: GameSide, armyId: number | null) {
     if (!caster) {
       return null;
     }
 
-    const model = matcher.match(caster, matcher.findArmy(army)?.name);
+    const armyName = matcher.armyName(armyId) ?? matcher.findArmy(army)?.name;
+    const model = matcher.match(caster, armyName);
     return model?.type === 'leader' ? model.id : null;
   }
 
   // Longshanks spells leaders differently than the lists, so the names are compared loosely when the catalog does not know the leader.
   private findPlayedList(matcher: ModelMatcher, side: GameSide, candidates: StoredList[]) {
-    const casterId = this.findLeaderId(matcher, side);
+    const casterId = this.findLeaderId(matcher, side, null);
     const match = candidates.find(
       (list) =>
         (casterId !== null && list.casterId === casterId) ||

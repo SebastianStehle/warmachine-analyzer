@@ -4,6 +4,9 @@ import { DataSource } from 'typeorm';
 import { ListEntryEntity, ModelEntity, ShopProductEntity, ShopProductModelEntity } from 'src/domain/database';
 import { findCheapestProducts, NOT_SOLD_MODELS, PricedProduct, ProductSelection } from './pricing';
 
+// Keeps the number of query parameters far below the limits of the databases.
+const LISTS_PER_QUERY = 1000;
+
 @Injectable()
 export class ListPricing {
   constructor(
@@ -38,6 +41,32 @@ export class ListPricing {
 
       // A price for a part of the list looks like a cheap list, so lists only get a price when every model is covered.
       result.set(listId, { ...selection, price: unpricedModels === 0 ? selection.price : null, unpricedModels });
+    }
+
+    return result;
+  }
+
+  // Entries that are not in the catalog count as missing, because nobody can tell whether the collection contains them.
+  async countMissingModels(listIds: number[], owned: Map<string, number>) {
+    const result = new Map<number, number>();
+    if (listIds.length === 0) {
+      return result;
+    }
+
+    const ownedModels = await this.loadOwnedModels(owned);
+
+    for (let start = 0; start < listIds.length; start += LISTS_PER_QUERY) {
+      const chunk = listIds.slice(start, start + LISTS_PER_QUERY);
+      const required = await this.loadRequiredModels(chunk);
+      const unmatched = await this.countUnmatchedEntries(chunk);
+
+      for (const listId of chunk) {
+        let missing = unmatched.get(listId) ?? 0;
+        for (const [modelId, count] of required.get(listId) ?? []) {
+          missing += Math.max(0, count - (ownedModels.get(modelId) ?? 0));
+        }
+        result.set(listId, missing);
+      }
     }
 
     return result;

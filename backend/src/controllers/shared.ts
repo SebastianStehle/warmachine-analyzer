@@ -118,6 +118,12 @@ export class RecordDto {
   })
   winRate: number | null;
 
+  static fromDomain(source: GameRecord) {
+    const result = new RecordDto();
+    RecordDto.assignRecord(result, source);
+    return result;
+  }
+
   static assignRecord(target: RecordDto, { games, wins, losses, draws, winRate }: GameRecord) {
     Object.assign(target, { games, wins, losses, draws, winRate });
   }

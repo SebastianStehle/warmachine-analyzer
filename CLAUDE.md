@@ -88,6 +88,7 @@ Backend only:
 - `npm run test:int` — integration tests with TestContainers (needs Docker). Set `TEST_DB_URL` to an admin connection of an existing Postgres server to skip the container.
 - `npm run crawl -- --event <id>` or `npm run crawl -- --from <date> [--to <date>] [--parallel <n>]` — import from Longshanks. `--refresh` ignores the page cache.
 - `npm run crawl -- --reparse` — re-parse all imported events from stored pages, without downloading. Run it after parser changes.
+- Deployments re-parse by themselves: increase `PARSER_VERSION` (`src/domain/imports/parser-version.ts`) whenever list parsing, model matching or army resolution changes. On startup the backend compares it with the version in the `settings` table and re-parses all events in the background when they differ. A re-parse without failures stores the new version.
 - `npm run prune` — drop all tables, including the page cache. Migrations and the catalog seed run again on the next start.
 - `npm run crawl -- --shop` — import the shop products and calculate the price of every list.
 - `npm run crawl -- --catalog [--reparse]` — load factions, armies and models from the wiki into `catalog.json` and import it, optionally re-parse all events.

@@ -10,3 +10,4 @@ export * from './QueryState';
 export * from './SearchInput';
 export * from './SortableColumn';
 export * from './WinRate';
+export * from './StatsTables';

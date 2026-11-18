@@ -24,6 +24,7 @@ export async function loadArmyIndexes(client: WikiClient) {
   } while (next);
 
   const result: ArmyIndex[] = [];
+  const failed: string[] = [];
   for (const title of titles) {
     try {
       const index = parseArmyIndex(await client.getRenderedPage(title));
@@ -31,8 +32,14 @@ export async function loadArmyIndexes(client: WikiClient) {
         result.push(index);
       }
     } catch (error) {
+      failed.push(title);
       logger.warn(`Failed to load army index ${title}: ${error}`);
     }
+  }
+
+  // A catalog without some armies would remove their models from the database, so it is better to keep the old one.
+  if (failed.length > 0) {
+    throw new Error(`Failed to load ${failed.length} army indexes, the catalog was not changed: ${failed.join(', ')}`);
   }
 
   await addAttachments(client, result);

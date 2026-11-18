@@ -68,7 +68,14 @@ export function buildCatalog(
       }
     }
 
-    armies.set(army, { name: army, faction, wikiIndex, models: armyModels });
+    // Additions to an army keep the faction and index of the wiki.
+    const existing = armies.get(army);
+    armies.set(army, {
+      name: army,
+      faction: existing?.faction ?? faction,
+      wikiIndex: existing?.wikiIndex ?? wikiIndex,
+      models: armyModels,
+    });
   }
 
   // The shop uses the full name, e.g. "Emperor Carver Ultimus Esquire III". Companions and attachments are described on

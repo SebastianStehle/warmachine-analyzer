@@ -1,0 +1,64 @@
+{
+  "parse": {
+    "title": "Winter Korps Snipers",
+    "tocdata": {
+      "sections": [
+        {
+          "tocLevel": 1,
+          "hLevel": 1,
+          "line": "Winter Korps Snipers"
+        },
+        {
+          "tocLevel": 2,
+          "hLevel": 2,
+          "line": "Statistics"
+        },
+        {
+          "tocLevel": 3,
+          "hLevel": 3,
+          "line": "Abilities:"
+        },
+        {
+          "tocLevel": 3,
+          "hLevel": 3,
+          "line": "Weapons"
+        },
+        {
+          "tocLevel": 2,
+          "hLevel": 2,
+          "line": "Winter Korps Hunting Dog Command Attachment"
+        },
+        {
+          "tocLevel": 3,
+          "hLevel": 3,
+          "line": "Abilities:"
+        },
+        {
+          "tocLevel": 3,
+          "hLevel": 3,
+          "line": "Weapons"
+        },
+        {
+          "tocLevel": 2,
+          "hLevel": 2,
+          "line": "Role and strengths"
+        },
+        {
+          "tocLevel": 2,
+          "hLevel": 2,
+          "line": "Downsides"
+        },
+        {
+          "tocLevel": 2,
+          "hLevel": 2,
+          "line": "Synergy"
+        },
+        {
+          "tocLevel": 2,
+          "hLevel": 2,
+          "line": "Tricks"
+        }
+      ]
+    }
+  }
+}

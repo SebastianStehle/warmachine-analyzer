@@ -74,3 +74,15 @@ export function ListLink({ id, children }: EntityLinkProps) {
     </Link>
   );
 }
+
+export function CasterLink({ caster }: { caster: string | null | undefined }) {
+  if (!caster) {
+    return <span>–</span>;
+  }
+
+  return (
+    <Link className={LINK_CLASS} to={`/casters/${encodeURIComponent(caster)}`} onClick={stopPropagation}>
+      {caster}
+    </Link>
+  );
+}

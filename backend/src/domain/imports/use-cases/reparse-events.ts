@@ -1,8 +1,9 @@
 import { Logger } from '@nestjs/common';
 import { Command, CommandBus, CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { InjectRepository } from '@nestjs/typeorm';
-import { EventEntity, EventRepository } from 'src/domain/database';
+import { EventEntity, EventRepository, SettingEntity, SettingRepository } from 'src/domain/database';
 import { runWithConcurrency } from 'src/domain/longshanks';
+import { PARSER_VERSION, PARSER_VERSION_KEY } from '../parser-version';
 import { ImportEvent } from './import-event';
 
 // Parsing from stored pages only hits the database, so it can run with more parallelism than downloads.
@@ -25,6 +26,8 @@ export class ReparseEventsHandler implements ICommandHandler<ReparseEvents, Repa
     private readonly commandBus: CommandBus,
     @InjectRepository(EventEntity)
     private readonly events: EventRepository,
+    @InjectRepository(SettingEntity)
+    private readonly settings: SettingRepository,
   ) {}
 
   async execute(): Promise<ReparseEventsResult> {
@@ -43,6 +46,13 @@ export class ReparseEventsHandler implements ICommandHandler<ReparseEvents, Repa
         this.logger.error(`Failed to re-parse event ${eventId}: ${error}`);
       }
     });
+
+    // Failed events would keep the old parse, so the next start tries again.
+    if (failed === 0) {
+      await this.settings.save({ key: PARSER_VERSION_KEY, value: String(PARSER_VERSION) });
+    } else {
+      this.logger.warn(`${failed} events failed to re-parse, the parser version stays at the old value.`);
+    }
 
     return new ReparseEventsResult(reparsed, failed);
   }

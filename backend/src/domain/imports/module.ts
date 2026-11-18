@@ -1,10 +1,11 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { EventEntity, ModelEntity } from 'src/domain/database';
+import { EventEntity, ModelEntity, SettingEntity } from 'src/domain/database';
 import { LongshanksModule } from 'src/domain/longshanks';
 import { ShopModule } from 'src/domain/shop';
 import { WikiModule } from 'src/domain/wiki';
 import { CatalogSeeder } from './catalog-seeder';
+import { ParserUpgrader } from './parser-upgrader';
 import { CrawlerScheduler } from './scheduler';
 import {
   DiscoverEventsHandler,
@@ -17,7 +18,7 @@ import {
 } from './use-cases';
 
 @Module({
-  imports: [LongshanksModule, ShopModule, TypeOrmModule.forFeature([EventEntity, ModelEntity]), WikiModule],
+  imports: [LongshanksModule, ShopModule, TypeOrmModule.forFeature([EventEntity, ModelEntity, SettingEntity]), WikiModule],
   providers: [
     CatalogSeeder, //
     DiscoverEventsHandler,
@@ -32,7 +33,7 @@ import {
 export class ImportsModule {}
 
 @Module({
-  imports: [ImportsModule],
-  providers: [CrawlerScheduler],
+  imports: [ImportsModule, TypeOrmModule.forFeature([ModelEntity, SettingEntity])],
+  providers: [CrawlerScheduler, ParserUpgrader],
 })
 export class ImportsSchedulerModule {}

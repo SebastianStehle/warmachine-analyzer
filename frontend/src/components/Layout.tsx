@@ -5,10 +5,12 @@ import { DateRangeFilter } from './DateRangeFilter';
 
 const NAVIGATION = [
   { to: '/factions', label: 'Factions' },
+  { to: '/matchups', label: 'Matchups' },
   { to: '/lists', label: 'Lists' },
   { to: '/players', label: 'Players' },
   { to: '/events', label: 'Events' },
   { to: '/collection', label: 'Collection' },
+  { to: '/unmatched', label: 'Unmatched' },
 ];
 
 function Cog() {

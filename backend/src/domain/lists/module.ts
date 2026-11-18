@@ -5,8 +5,10 @@ import {
   GetListHandler,
   GetListPricesHandler,
   GetListsHandler,
+  GetPlayableListsHandler,
   GetPointLevelsHandler,
   GetShopProductsHandler,
+  GetUnmatchedEntriesHandler,
 } from './use-cases';
 
 @Module({
@@ -17,7 +19,9 @@ import {
     GetListPricesHandler,
     GetListsHandler,
     GetPointLevelsHandler,
+    GetPlayableListsHandler,
     GetShopProductsHandler,
+    GetUnmatchedEntriesHandler,
   ],
 })
 export class ListsModule {}

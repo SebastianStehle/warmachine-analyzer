@@ -48,6 +48,7 @@ Open http://localhost:5173. The API docs are at http://localhost:3000/api.
 - It sends at most 2 requests at a time with at least one second between them (`LONGSHANKS_MAX_CONCURRENT_REQUESTS`, `LONGSHANKS_REQUEST_DELAY_MS`) and imports 2 events in parallel (`CRAWLER_EVENT_CONCURRENCY`). A first crawl of a whole year takes a few hours, that is expected. Please keep the limits low, Longshanks is a hobby project.
 - Only finished events are imported. Re-importing an event replaces its data.
 - Every downloaded page is stored in the `pages` table. If the list parser improves, run `npm run crawl -- --reparse`: all events are parsed again from the stored pages without downloading anything. Use `--refresh` to force a download.
+- When you change the parser, the model matching or how armies are assigned, increase `PARSER_VERSION` in `backend/src/domain/imports/parser-version.ts`. After a deployment the backend notices the new version on startup and re-parses all events in the background, so there is nothing to run by hand. The site stays online meanwhile.
 - Importing an event again is safe: its data is replaced in one transaction and list IDs stay the same, so links keep working.
 - Games are linked to the list that was played by comparing the leader Longshanks shows for the game with the caster of each list. If a player submitted only one list, that list is used.
 

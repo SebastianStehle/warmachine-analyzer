@@ -11,6 +11,7 @@ import { ModelEntity } from './model';
 import { PageEntity } from './page';
 import { ParticipantEntity } from './participant';
 import { PlayerEntity } from './player';
+import { SettingEntity } from './setting';
 import { ShopProductEntity } from './shop-product';
 import { ShopProductModelEntity } from './shop-product-model';
 
@@ -27,6 +28,7 @@ export * from './model';
 export * from './page';
 export * from './participant';
 export * from './player';
+export * from './setting';
 export * from './shop-product';
 export * from './shop-product-model';
 
@@ -44,6 +46,7 @@ export const ALL_ENTITIES = [
   PageEntity,
   ParticipantEntity,
   PlayerEntity,
+  SettingEntity,
   ShopProductEntity,
   ShopProductModelEntity,
 ];

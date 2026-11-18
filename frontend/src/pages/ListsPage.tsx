@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import { ListSortField, SortOrder, useClients } from 'src/api';
 import {
   ArmyLink,
+  CasterLink,
   EventLink,
   MultiSelect,
   PageHeader,
@@ -260,7 +261,9 @@ export function ListsPage() {
                         <Table.Cell>
                           <ArmyLink army={list.army} faction={list.faction} />
                         </Table.Cell>
-                        <Table.Cell className="font-semibold">{list.caster ?? '–'}</Table.Cell>
+                        <Table.Cell className="font-semibold">
+                          <CasterLink caster={list.caster} />
+                        </Table.Cell>
                         <Table.Cell className="whitespace-nowrap tabular-nums">
                           {formatPoints(list.totalPoints, list.pointLevel)}
                         </Table.Cell>

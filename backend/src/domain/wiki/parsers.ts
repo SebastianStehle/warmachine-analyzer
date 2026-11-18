@@ -27,7 +27,9 @@ const TYPE_PATTERNS: [RegExp, ModelType][] = [
   [/structure|defense|marker|airdrop|army/, 'structure'],
 ];
 
-const ATTACHMENT_HEADING = /^(?:command|weapon)\s+attachments?\s*:\s*(.+)$/i;
+// Pages write "Command Attachment: Pyg Coxswain" or "Winter Korps Hunting Dog Command Attachment".
+const ATTACHMENT_HEADINGS = [/^(?:command|weapon)\s+attachments?\s*:\s*(.+)$/i, /^(.+?)\s+(?:command|weapon)\s+attachments?$/i];
+const FURY_STAT = /<!--\s*Fury\s*-->/i;
 const LIMITED_BATTLEGROUP = /\{\{\s*Limited Battlegroup\s*\|([^}]+)\}\}/i;
 const NAME_SEPARATORS = /\s+(?:and|&)\s+|\s*,\s*/i;
 const BOLD_TEXT = /'''(.+?)'''/;
@@ -138,7 +140,8 @@ export function parseAttachments(json: string, unit: string): string[] {
 
   const result: string[] = [];
   for (const { line } of sections) {
-    const match = ATTACHMENT_HEADING.exec(cleanText(load(line).text()));
+    const heading = cleanText(load(line).text());
+    const match = ATTACHMENT_HEADINGS.map((pattern) => pattern.exec(heading)).find((result) => !!result);
     if (!match) {
       continue;
     }
@@ -190,21 +193,39 @@ export function parseCompanions(json: string): Companion[] {
     .map((name) => ({ name, type: findSectionType(lines, name) }));
 }
 
+const headingLevel = (line: string) => /^=+/.exec(line)?.[0].length ?? 0;
+
 // The section of a companion starts with a line like "'''[[Mercenary Prime|Mercenary]] [[Super Heavy Monstrosity]]'''".
+// Some sections only have a description, then a Fury column in the statistics tells that it is a warbeast.
 function findSectionType(lines: string[], name: string) {
   const heading = lines.findIndex((line) => /^=+[^=]+=+$/.test(line) && cleanText(line.replace(/=/g, '')) === name);
   if (heading < 0) {
     return null;
   }
 
+  const level = headingLevel(lines[heading]);
+  let typeLineChecked = false;
+
   for (const line of lines.slice(heading + 1)) {
-    if (line.startsWith('=')) {
+    const lineLevel = headingLevel(line);
+    if (lineLevel > 0 && lineLevel <= level) {
       return null;
     }
 
-    const bold = BOLD_TEXT.exec(line);
-    if (bold) {
-      return toModelType(bold[1].replace(WIKI_LINK, '$1'));
+    if (lineLevel === 0 && !typeLineChecked) {
+      const bold = BOLD_TEXT.exec(line);
+      if (bold) {
+        typeLineChecked = true;
+
+        const type = toModelType(bold[1].replace(WIKI_LINK, '$1'));
+        if (type) {
+          return type;
+        }
+      }
+    }
+
+    if (FURY_STAT.test(line)) {
+      return 'warbeast';
     }
   }
 

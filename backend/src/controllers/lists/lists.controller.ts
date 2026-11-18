@@ -1,7 +1,15 @@
 import { Body, Controller, Get, HttpCode, Param, ParseIntPipe, Post, Query } from '@nestjs/common';
 import { QueryBus } from '@nestjs/cqrs';
 import { ApiOkResponse, ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
-import { GetCastersQuery, GetListPricesQuery, GetListQuery, GetListsQuery, GetPointLevelsQuery } from 'src/domain/lists';
+import {
+  GetCastersQuery,
+  GetListPricesQuery,
+  GetListQuery,
+  GetListsQuery,
+  GetPlayableListsQuery,
+  GetPointLevelsQuery,
+  GetUnmatchedEntriesQuery,
+} from 'src/domain/lists';
 import { DateRangeQueryDto } from '../shared';
 import {
   CasterOptionsDto,
@@ -11,7 +19,10 @@ import {
   ListPricesRequestDto,
   ListsDto,
   ListsQueryDto,
+  PlayableListsDto,
+  PlayableListsRequestDto,
   PointLevelOptionsDto,
+  UnmatchedEntriesDto,
 } from './dtos';
 
 @Controller('api/lists')
@@ -57,6 +68,25 @@ export class ListsController {
     const { prices, currency } = await this.queryBus.execute(new GetListPricesQuery(listIds, owned));
 
     return ListPricesDto.fromDomain(prices, currency);
+  }
+
+  @Post('playable')
+  @HttpCode(200)
+  @ApiOperation({ operationId: 'getPlayableLists', description: 'Gets lists, fewest models missing in the collection first.' })
+  @ApiOkResponse({ type: PlayableListsDto })
+  async getPlayableLists(@Body() { owned, ...filter }: PlayableListsRequestDto) {
+    const { items, total, playable } = await this.queryBus.execute(new GetPlayableListsQuery(filter, owned));
+
+    return PlayableListsDto.fromDomain(items, total, playable);
+  }
+
+  @Get('unmatched')
+  @ApiOperation({ operationId: 'getUnmatchedEntries', description: 'Gets list entries that match no model of the catalog.' })
+  @ApiOkResponse({ type: UnmatchedEntriesDto })
+  async getUnmatchedEntries(@Query() { from, to }: DateRangeQueryDto) {
+    const { entries } = await this.queryBus.execute(new GetUnmatchedEntriesQuery({ from, to }));
+
+    return UnmatchedEntriesDto.fromDomain(entries);
   }
 
   @Get(':id')

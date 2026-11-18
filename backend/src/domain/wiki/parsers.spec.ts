@@ -88,8 +88,11 @@ describe('index helpers', () => {
 describe('parseAttachments', () => {
   const sections = (name: string) => readFileSync(join(__dirname, '../../../test/fixtures/wiki', `${name}.json`), 'utf8');
 
-  it('should read command attachments from the sections of a unit page', () => {
+  it('should read command attachments from the sections of a unit page, also when the name comes first', () => {
     expect(parseAttachments(sections('pyg-shockers-sections'), 'Pyg Shockers')).toEqual(['Pyg Coxswain']);
+    expect(parseAttachments(sections('winter-korps-snipers-sections'), 'Winter Korps Snipers')).toEqual([
+      'Winter Korps Hunting Dog',
+    ]);
   });
 
   it('should prefix single word attachments with the unit, as lists do', () => {
@@ -108,10 +111,10 @@ describe('parseCompanions', () => {
     expect(parseCompanions(wikitext('exulon-nostilla-wikitext'))).toEqual([{ name: 'Aberration', type: 'warjack' }]);
   });
 
-  it('should read several companions', () => {
+  it('should read several companions and take the type from the Fury statistic when the section has no type', () => {
     expect(parseCompanions(wikitext('lanyssa-ryssyl-wikitext'))).toEqual([
-      { name: 'Benkei', type: null },
-      { name: 'Sasha', type: null },
+      { name: 'Benkei', type: 'warbeast' },
+      { name: 'Sasha', type: 'warbeast' },
     ]);
   });
 });

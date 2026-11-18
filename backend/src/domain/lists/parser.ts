@@ -33,6 +33,8 @@ const COMMAND_CARD_HEADER = /^PC\s+COMMAND\s+CARD$/i;
 const TOTAL_POINTS = /^TOTAL\s+POINTS\s+(\d+)\s*\/\s*(\d+)/i;
 const FORMAT_LINE = /^(.+?)\s+-\s+(\d+)\s*pts$/i;
 const ENTRY_LINE = /^\s*(\d+)?\s*(\S.*?)\s*$/;
+// Cards that War Room lists between the models, they are no models and have no price.
+const IGNORED_ENTRIES = new Set(['hunger']);
 // Modules and equipment are written with an upper case slot, e.g. "HEAD - Focus Vault", "RIGHT HEX BLADE - Force Generator" or "DEFENSE 1 - Barrier".
 const MODULE_NAME = /^[A-Z][A-Z0-9 '&/.]*? - /;
 const NUMBER_SUFFIX = /\s+\d+$/;
@@ -152,7 +154,7 @@ function parseArmyList(lines: string[]): ParsedList {
       rawEntries.length = 0;
     } else {
       const match = ENTRY_LINE.exec(line);
-      if (match) {
+      if (match && !IGNORED_ENTRIES.has(match[2].toLowerCase())) {
         const [, points, name] = match;
         rawEntries.push({ name, points: points ? parseInt(points, 10) : null, column: line.indexOf(name) });
       }

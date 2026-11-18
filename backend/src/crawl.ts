@@ -3,7 +3,7 @@ import { parseArgs } from 'util';
 import { Logger, Module } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { CommandBus } from '@nestjs/cqrs';
-import { CoreModule } from './domain/database';
+import { CoreModule } from './domain/database/module';
 import { DiscoverEvents, ImportEvent, ImportShop, ImportsModule, ReparseEvents, UpdateCatalog } from './domain/imports';
 
 const USAGE = `Usage:

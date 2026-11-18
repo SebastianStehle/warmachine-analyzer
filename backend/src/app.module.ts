@@ -7,7 +7,7 @@ import { ListsController } from './controllers/lists/lists.controller';
 import { PlayersController } from './controllers/players/players.controller';
 import { ShopController } from './controllers/shop/shop.controller';
 import { StatisticsController } from './controllers/statistics/statistics.controller';
-import { CoreModule } from './domain/database';
+import { CoreModule } from './domain/database/module';
 import { EventsModule } from './domain/events';
 import { ImportsSchedulerModule } from './domain/imports';
 import { ListsModule } from './domain/lists';

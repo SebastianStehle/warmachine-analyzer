@@ -2,8 +2,9 @@ import { Logger } from '@nestjs/common';
 import { Command, CommandHandler, ICommandHandler } from '@nestjs/cqrs';
 import { InjectDataSource } from '@nestjs/typeorm';
 import { DataSource, EntityManager } from 'typeorm';
-import { CatalogData, readCatalog } from 'src/domain/catalog';
-import { ArmyEntity, ArmyModelEntity, FactionEntity, ModelEntity } from 'src/domain/database';
+import { CatalogData, hashCatalog, readCatalog } from 'src/domain/catalog';
+import { ArmyEntity, ArmyModelEntity, FactionEntity, ModelEntity, SettingEntity } from 'src/domain/database';
+import { CATALOG_HASH_KEY } from '../parser-version';
 
 export class ImportCatalog extends Command<ImportCatalogResult> {
   constructor(public readonly catalog?: CatalogData) {
@@ -30,7 +31,10 @@ export class ImportCatalogHandler implements ICommandHandler<ImportCatalog, Impo
   async execute(command: ImportCatalog): Promise<ImportCatalogResult> {
     const catalog = command.catalog ?? readCatalog();
 
-    await this.dataSource.transaction((manager) => this.save(manager, catalog));
+    await this.dataSource.transaction(async (manager) => {
+      await this.save(manager, catalog);
+      await manager.save(SettingEntity, { key: CATALOG_HASH_KEY, value: hashCatalog(catalog) });
+    });
 
     this.logger.log(`Imported ${catalog.armies.length} armies with ${catalog.models.length} models.`);
     return new ImportCatalogResult(catalog.armies.length, catalog.models.length);

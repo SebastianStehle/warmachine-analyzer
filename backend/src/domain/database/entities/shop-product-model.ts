@@ -22,4 +22,7 @@ export class ShopProductModelEntity {
 
   @Column('int')
   quantity: number;
+
+  @Column('int', { nullable: true })
+  choice: number | null;
 }

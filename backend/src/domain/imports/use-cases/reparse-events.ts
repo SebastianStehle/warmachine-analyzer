@@ -3,7 +3,7 @@ import { Command, CommandBus, CommandHandler, ICommandHandler } from '@nestjs/cq
 import { InjectRepository } from '@nestjs/typeorm';
 import { EventEntity, EventRepository, SettingEntity, SettingRepository } from 'src/domain/database';
 import { runWithConcurrency } from 'src/domain/longshanks';
-import { PARSER_VERSION, PARSER_VERSION_KEY } from '../parser-version';
+import { CATALOG_HASH_KEY, PARSED_CATALOG_HASH_KEY, PARSER_VERSION, PARSER_VERSION_KEY } from '../parser-version';
 import { ImportEvent } from './import-event';
 
 // Parsing from stored pages only hits the database, so it can run with more parallelism than downloads.
@@ -31,6 +31,7 @@ export class ReparseEventsHandler implements ICommandHandler<ReparseEvents, Repa
   ) {}
 
   async execute(): Promise<ReparseEventsResult> {
+    const catalogHash = await this.settings.findOneBy({ key: CATALOG_HASH_KEY });
     const ids = (await this.events.find({ select: { id: true } })).map(({ id }) => id);
 
     this.logger.log(`Re-parsing ${ids.length} events from stored pages.`);
@@ -49,9 +50,12 @@ export class ReparseEventsHandler implements ICommandHandler<ReparseEvents, Repa
 
     // Failed events would keep the old parse, so the next start tries again.
     if (failed === 0) {
-      await this.settings.save({ key: PARSER_VERSION_KEY, value: String(PARSER_VERSION) });
+      await this.settings.save([
+        { key: PARSER_VERSION_KEY, value: String(PARSER_VERSION) },
+        { key: PARSED_CATALOG_HASH_KEY, value: catalogHash?.value ?? '' },
+      ]);
     } else {
-      this.logger.warn(`${failed} events failed to re-parse, the parser version stays at the old value.`);
+      this.logger.warn(`${failed} events failed to re-parse, the events are re-parsed again on the next start.`);
     }
 
     return new ReparseEventsResult(reparsed, failed);

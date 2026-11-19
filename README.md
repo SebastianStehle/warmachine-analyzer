@@ -48,7 +48,7 @@ Open http://localhost:5173. The API docs are at http://localhost:3000/api.
 - It sends at most 2 requests at a time with at least one second between them (`LONGSHANKS_MAX_CONCURRENT_REQUESTS`, `LONGSHANKS_REQUEST_DELAY_MS`) and imports 2 events in parallel (`CRAWLER_EVENT_CONCURRENCY`). A first crawl of a whole year takes a few hours, that is expected. Please keep the limits low, Longshanks is a hobby project.
 - Only finished events are imported. Re-importing an event replaces its data.
 - Every downloaded page is stored in the `pages` table. If the list parser improves, run `npm run crawl -- --reparse`: all events are parsed again from the stored pages without downloading anything. Use `--refresh` to force a download.
-- When you change the parser, the model matching or how armies are assigned, increase `PARSER_VERSION` in `backend/src/domain/imports/parser-version.ts`. After a deployment the backend notices the new version on startup and re-parses all events in the background, so there is nothing to run by hand. The site stays online meanwhile.
+- When you change the parser, the model matching or how armies are assigned, increase `PARSER_VERSION` in `backend/src/domain/imports/parser-version.ts`. After a deployment the backend notices the new version on startup and re-parses all events in the background, so there is nothing to run by hand. The same happens when `catalog.json` changed: it is imported on startup and all events are re-parsed. The site stays online meanwhile.
 - Importing an event again is safe: its data is replaced in one transaction and list IDs stay the same, so links keep working.
 - Games are linked to the list that was played by comparing the leader Longshanks shows for the game with the caster of each list. If a player submitted only one list, that list is used.
 
@@ -61,7 +61,7 @@ CRAWLER_LOOKBACK_DAYS=14        # check the last two weeks for new events
 
 ## Models from the wiki
 
-Factions, armies and models come from the army indexes of the [Warmachine Academy wiki](https://warmachineacademy.miraheze.org/wiki/Main_Page) (the footer at the end of each army page). `npm run crawl -- --catalog` loads them, writes them to `backend/src/domain/catalog/catalog.json`, and imports them; add `--reparse` to match all lists against the new catalog. Run it again whenever the wiki changes and commit the file. When the backend or the crawler starts with an empty database, the catalog file is imported automatically.
+Factions, armies and models come from the army indexes of the [Warmachine Academy wiki](https://warmachineacademy.miraheze.org/wiki/Main_Page) (the footer at the end of each army page). `npm run crawl -- --catalog` loads them, writes them to `backend/src/domain/catalog/catalog.json`, and imports them; add `--reparse` to match all lists against the new catalog. Run it again whenever the wiki changes and commit the file. When the backend or the crawler starts, the catalog file is imported automatically if the database does not have it yet.
 
 Only armies that have an index in the wiki are analyzed. Lists of other armies (e.g. Legacy armies) are not stored, and players of those armies show up without an army.
 
@@ -69,7 +69,7 @@ Every list entry is matched to a model of its army: exact names first, then name
 
 ## Prices from the shop
 
-`npm run crawl -- --shop` reads all products of the official shop [warmachine.gg](https://warmachine.gg) from its product feed in the configured currency (`SHOP_CURRENCY`, default EUR). The models of a product come from the "What's in the box?" section of the description, or from the title for single kits. They are matched to the models of the wiki with the same matching as list entries, using the army tags of the product. Chassis variants are skipped, they come without weapons and heads.
+`npm run crawl -- --shop` reads all products of the official shop [warmachine.gg](https://warmachine.gg) from its product feed in the configured currency (`SHOP_CURRENCY`, default EUR). The models of a product come from the "What's in the box?" (or "What's included?") section of the description, from lines with a model type like "(Unit)" when there is no such section, or from the title for single kits. They are matched to the models of the wiki with the same matching as list entries, using the army tags of the product. Shortened names are matched as well, e.g. "Southern Kriels Kithguard Medics" or "Gunmages", but only when exactly one model of the army fits. Chassis variants are skipped, they come without weapons and heads. Kits that build one of several models, e.g. "Crucible Guard Toro/Suppressor/Vindicator Warjack" or the "Build options" of a box, count as one of them: a list with a Toro and a Suppressor needs two kits.
 
 The price of a list is the cheapest combination of products that contains every model of the list, calculated as an integer program with the HiGHS solver. A box can be cheaper than the single kits, and products are bought several times when a list needs a model more often. Models the shop does not sell are shown below the products and are not part of the price. Prices are calculated again after every shop import and event import, the scheduled crawl imports the shop as well.
 

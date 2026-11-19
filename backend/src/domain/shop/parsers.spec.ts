@@ -63,6 +63,31 @@ describe('parseProducts', () => {
     expect(byTitle('Stryker Chassis Variant').contents).toEqual([]);
   });
 
+  it('should read the models of army boxes without a contents heading and add up numbered copies', () => {
+    expect(byTitle('Legions of the Dead').contents).toEqual([
+      { name: 'Master Necrosurgeon Sepsira', quantity: 1 },
+      { name: 'Raptor', quantity: 1 },
+      { name: 'Malefactor', quantity: 1 },
+      { name: 'Skarlock Lieutenant', quantity: 1 },
+      { name: 'Machine Wraith Dominator', quantity: 1 },
+      { name: 'Iron Lich Commander', quantity: 1 },
+      { name: 'Mechinthrall Swarm', quantity: 2 },
+      { name: 'Mechanithrall Brutes', quantity: 1 },
+      { name: 'Necrosurgeon Initiates', quantity: 1 },
+      { name: 'Mechanithrall Swarm Warden', quantity: 1 },
+    ]);
+  });
+
+  it('should read kits that build one of several models from the title and from the build options of a box', () => {
+    expect(byTitle('Toro/Suppressor/Vindicator')).toMatchObject({
+      contents: [],
+      choices: [{ names: ['Crucible Guard Toro', 'Suppressor', 'Vindicator'], quantity: 1 }],
+    });
+    expect(byTitle('Crucible Guard Core Expansion').choices).toEqual([
+      { names: ['Vindicator', 'Toro', 'Suppressor'], quantity: 1 },
+    ]);
+  });
+
   it('should not count defenses as models, because they are terrain', () => {
     expect(byTitle('Gravediggers Defenses Set').contents).toEqual([]);
   });

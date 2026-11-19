@@ -19,6 +19,8 @@ export interface CatalogArmy {
 const NUMBER_SUFFIX = /\s+\d+$/;
 const PARENTHESES = /\s*\([^)]*\)/g;
 const MIN_FUZZY_LENGTH = 6;
+// Shop titles shorten names to a single word, e.g. "Bosun" for "Marauder Crew Bosun".
+const MIN_ENDING_LENGTH = 5;
 const MEDIUM_NAME_LENGTH = 10;
 const LONG_NAME_LENGTH = 15;
 
@@ -36,6 +38,8 @@ const toWords = (name: string) =>
     .toLowerCase()
     .split(/[^a-z0-9]+/)
     .filter((word) => word.length > 0);
+
+const toSingularWords = (name: string) => toWords(name.replace(PARENTHESES, '')).map((word) => word.replace(/s$/, ''));
 
 // Short names are similar to many other names, e.g. "Hunger" and "Hunter", so they get fewer typos and only within the army.
 function maxTypos(length: number, inArmy: boolean) {
@@ -59,7 +63,7 @@ export class ModelMatcher {
   private readonly cache = new Map<string, CatalogModel | null>();
 
   constructor(
-    models: CatalogModel[],
+    private readonly models: CatalogModel[],
     private readonly armies: CatalogArmy[],
   ) {
     for (const model of models) {
@@ -129,9 +133,12 @@ export class ModelMatcher {
     );
   }
 
+  // The wiki has no faction for some armies, e.g. "Khymaera Shadowflame Shard", but their name starts with it.
   findArmiesOfFaction(faction: string) {
     const name = normalizeName(faction);
-    return this.armies.filter((army) => army.faction !== null && normalizeName(army.faction) === name);
+    return this.armies.filter(
+      (army) => (army.faction !== null && normalizeName(army.faction) === name) || normalizeName(army.name).startsWith(name),
+    );
   }
 
   armyName(armyId: number | null) {
@@ -146,21 +153,46 @@ export class ModelMatcher {
     return this.armies.length > 0;
   }
 
-  // The shop shortens names in titles, e.g. "Hunting Dog" for "Winter Korps Hunting Dog". Only unique endings within the army count.
-  matchEnding(name: string, army: string) {
+  // The shop shortens names in titles, e.g. "Hunting Dog" for "Winter Korps Hunting Dog". Only unique endings count.
+  matchEnding(name: string, army: string | null) {
     const key = normalizeName(name);
-    if (key.length < MEDIUM_NAME_LENGTH) {
+    if (key.length < MIN_ENDING_LENGTH) {
       return null;
     }
 
     const found = new Set<CatalogModel>();
     for (const candidate of this.keys) {
-      if (candidate.key.endsWith(key) && candidate.model.armies.includes(army)) {
+      if (candidate.key.endsWith(key) && (army === null || candidate.model.armies.includes(army))) {
         found.add(candidate.model);
       }
     }
 
     return found.size === 1 ? [...found][0] : null;
+  }
+
+  // Parts of shop titles are only safe without typos, e.g. "Commander" of "Orgoth Reaver Commander".
+  matchExact(name: string, army: string) {
+    return this.byKey.get(normalizeName(name))?.find((model) => model.armies.includes(army)) ?? null;
+  }
+
+  // The shop adds or drops words, e.g. "Flameguard Defenders Standard" for "Flameguard Defender Standard Bearer".
+  matchWords(name: string, army: string | null) {
+    const words = toSingularWords(name);
+    if (words.length < MIN_ATTACHMENT_WORDS) {
+      return null;
+    }
+
+    // Only names that drop words, a model named in a longer name is often a part, e.g. "Kithguard Infantry Support Weapons".
+    const found = this.models.filter((model) => {
+      if (army !== null && !model.armies.includes(army)) {
+        return false;
+      }
+
+      const modelWords = toSingularWords(model.name);
+      return words.every((word) => modelWords.includes(word));
+    });
+
+    return found.length === 1 ? found[0] : null;
   }
 
   match(name: string, army?: string | null) {

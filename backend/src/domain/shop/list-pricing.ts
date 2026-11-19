@@ -78,14 +78,33 @@ export class ListPricing {
       this.dataSource.getRepository(ShopProductModelEntity).find(),
     ]);
 
-    const result = new Map<number, PricedProduct>(products.map(({ id, price }) => [id, { id, price, models: new Map() }]));
-    for (const { productId, modelId, quantity } of contents) {
-      result.get(productId)?.models.set(modelId, quantity);
+    const result = new Map<number, PricedProduct>(
+      products.map(({ id, price }) => [id, { id, price, models: new Map(), choices: [] }]),
+    );
+
+    for (const { productId, modelId, quantity, choice } of contents) {
+      const product = result.get(productId);
+      if (!product) {
+        continue;
+      }
+
+      if (choice === null) {
+        product.models.set(modelId, quantity);
+      } else {
+        product.choices[choice] ??= { modelIds: [], quantity };
+        product.choices[choice].modelIds.push(modelId);
+      }
     }
 
-    return [...result.values()].filter(({ models }) => models.size > 0);
+    // A choice can be missing when none of its models was found in the catalog.
+    for (const product of result.values()) {
+      product.choices = product.choices.filter((choice) => !!choice);
+    }
+
+    return [...result.values()].filter(({ models, choices }) => models.size > 0 || choices.length > 0);
   }
 
+  // A kit that builds one of several models counts as each of them, players often magnetize these kits.
   private async loadOwnedModels(owned: Map<string, number>) {
     const result = new Map<number, number>();
     if (owned.size === 0) {

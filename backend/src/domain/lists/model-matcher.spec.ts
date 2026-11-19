@@ -151,6 +151,26 @@ describe('ModelMatcher', () => {
     expect(shopMatcher.matchEnding('Dog', 'Winter Korps')).toBeNull();
   });
 
+  it('should match shop names that drop words only when the model is unique', () => {
+    const shopMatcher = new ModelMatcher(
+      [
+        { id: 1, name: 'Flameguard Defenders', type: 'unit', aliases: [], armies: ['Covenant of the Flame'] },
+        {
+          id: 2,
+          name: 'Flameguard Defender Standard Bearer',
+          type: 'attachment',
+          aliases: [],
+          armies: ['Covenant of the Flame'],
+        },
+      ],
+      [],
+    );
+
+    expect(shopMatcher.matchWords('Flameguard Defenders Standard', 'Covenant of the Flame')?.id).toEqual(2);
+    expect(shopMatcher.matchWords('Flameguard Defenders', 'Covenant of the Flame')).toBeNull();
+    expect(shopMatcher.matchWords('Flameguard Defenders Support Weapons', 'Covenant of the Flame')).toBeNull();
+  });
+
   it('should match the first part of combined models, names with an epithet and attachments named after their unit', () => {
     const namesMatcher = new ModelMatcher(
       [

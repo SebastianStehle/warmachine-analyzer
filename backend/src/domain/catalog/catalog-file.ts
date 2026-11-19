@@ -1,3 +1,4 @@
+import { createHash } from 'crypto';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { ModelType } from 'src/domain/database';
@@ -32,6 +33,11 @@ export const CATALOG_FILE = join(__dirname, 'catalog.json');
 
 export function readCatalog(file = CATALOG_FILE): CatalogData {
   return JSON.parse(readFileSync(file, 'utf8')) as CatalogData;
+}
+
+// Tells whether the database has the catalog of the file, so a deployment with a new catalog file imports it.
+export function hashCatalog(catalog: CatalogData) {
+  return createHash('sha256').update(JSON.stringify(catalog)).digest('hex');
 }
 
 const byName = <T extends { name: string }>(a: T, b: T) => a.name.localeCompare(b.name);

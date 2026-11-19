@@ -50,6 +50,7 @@ There is no API, but everything we need is public HTML — no login required. Th
 - The contents of a product are parsed from the "What's in the box?" list of the description (`Name (Type)`, optional quantity like `3 x`), otherwise from the title. Matching to models uses `ModelMatcher` with the army tags of the product (`warmachine-house-kallyss`).
 - `ImportShop` upserts products by Shopify id, replaces their models, deletes products that disappeared and runs `UpdatePrices`. `ImportEvent` runs `UpdatePrices` for its lists.
 - `findCheapestProducts` solves the cheapest product combination per list as an integer program with HiGHS (`highs` package). Prices are stored in cents.
+- Kits that build one of several models (`Toro/Suppressor/Vindicator` titles, `Build options:` lines) are stored as product models with the same `choice` index. The solver lets each bought kit build only one model of a choice.
 
 ## Domain
 
@@ -88,7 +89,7 @@ Backend only:
 - `npm run test:int` — integration tests with TestContainers (needs Docker). Set `TEST_DB_URL` to an admin connection of an existing Postgres server to skip the container.
 - `npm run crawl -- --event <id>` or `npm run crawl -- --from <date> [--to <date>] [--parallel <n>]` — import from Longshanks. `--refresh` ignores the page cache.
 - `npm run crawl -- --reparse` — re-parse all imported events from stored pages, without downloading. Run it after parser changes.
-- Deployments re-parse by themselves: increase `PARSER_VERSION` (`src/domain/imports/parser-version.ts`) whenever list parsing, model matching or army resolution changes. On startup the backend compares it with the version in the `settings` table and re-parses all events in the background when they differ. A re-parse without failures stores the new version.
+- Deployments re-parse by themselves: increase `PARSER_VERSION` (`src/domain/imports/parser-version.ts`) whenever list parsing, model matching or army resolution changes. On startup the backend imports `catalog.json` when it differs from the imported catalog (hash in the `settings` table), then re-parses all events in the background when the parser version or the catalog changed. A re-parse without failures stores both.
 - `npm run prune` — drop all tables, including the page cache. Migrations and the catalog seed run again on the next start.
 - `npm run crawl -- --shop` — import the shop products and calculate the price of every list.
 - `npm run crawl -- --catalog [--reparse]` — load factions, armies and models from the wiki into `catalog.json` and import it, optionally re-parse all events.

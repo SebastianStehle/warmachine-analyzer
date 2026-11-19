@@ -6,11 +6,18 @@ const WARJACK = 2;
 const UNIT = 3;
 const SOLO = 4;
 const NOT_IN_SHOP = 5;
+const OTHER_WARJACK = 6;
 
-const product = (id: number, price: number, models: [number, number][]): PricedProduct => ({
+const product = (
+  id: number,
+  price: number,
+  models: [number, number][],
+  choices: PricedProduct['choices'] = [],
+): PricedProduct => ({
   id,
   price,
   models: new Map(models),
+  choices,
 });
 
 describe('findCheapestProducts', () => {
@@ -145,6 +152,18 @@ describe('findCheapestProducts', () => {
       ],
       unpricedModels: 0,
     });
+  });
+
+  it('should build only one model from a kit with several build options', async () => {
+    const result = await findCheapestProducts(
+      new Map([
+        [WARJACK, 1],
+        [OTHER_WARJACK, 1],
+      ]),
+      [product(30, 4000, [], [{ modelIds: [WARJACK, OTHER_WARJACK], quantity: 1 }])],
+    );
+
+    expect(result).toEqual({ price: 8000, products: [{ id: 30, quantity: 2 }], unpricedModels: 0 });
   });
 
   it('should count models that no product contains', async () => {
